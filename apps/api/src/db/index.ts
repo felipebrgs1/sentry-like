@@ -194,6 +194,37 @@ const CREATE_STATEMENTS = [
     created_at INTEGER NOT NULL
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS releases_project_name ON releases(project_id, name)`,
+  `CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    is_owner INTEGER NOT NULL DEFAULT 0,
+    totp_secret TEXT,
+    totp_enabled INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS orgs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS org_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id INTEGER NOT NULL REFERENCES orgs(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    role TEXT NOT NULL DEFAULT 'member',
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS api_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    name TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    last_used_at INTEGER,
+    created_at INTEGER NOT NULL
+  )`,
 ];
 
 // colunas adicionadas depois do schema inicial — idempotente em DBs existentes
@@ -214,6 +245,8 @@ const ALTER_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS saved_searches (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL REFERENCES projects(id), name TEXT NOT NULL, filters TEXT NOT NULL, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS saved_searches_project ON saved_searches(project_id)`,
   `ALTER TABLE transactions ADD COLUMN country TEXT`,
+  `ALTER TABLE projects ADD COLUMN org_id INTEGER`,
+  `ALTER TABLE sessions ADD COLUMN user_id INTEGER`,
 ];
 
 /** Cria o banco (bun:sqlite, VPS) e roda o bootstrap síncrono. */

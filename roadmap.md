@@ -87,14 +87,14 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 - [x] **User feedback widget** — endpoint legado `/api/:id/user-feedback/` (key do DSN) + item `user_report` do envelope (já na F1); feedback exibido no detalhe da issue (join por event_id normalizado)
 - [x] **Gráfico de crash-free por release** — página de release completa: card crash-free (sessões) + série de 14 dias colorida por saúde (≥99% verde, ≥95% âmbar, senão vermelho); releases agora também são auto-descobertas a partir de sessões
 
-## Fase 7 — Multi-usuário & organizações 📋
+## Fase 7 — Multi-usuário & organizações ✅
 
-- [ ] **Tabela de usuários** — senha com hash (argon2/bcrypt), não mais env var única
-- [ ] **Organizações/teams** — projetos pertencem a orgs
-- [ ] **Roles** — owner/member, convites por email
-- [ ] **API tokens** — para automação (CI, upload de sourcemap)
-- [ ] **2FA** — TOTP
-- [ ] **SSO** — Google/GitHub OAuth (bom pra auto-host)
+- [x] **Tabela de usuários** — senha com hash PBKDF2-SHA256 (Web Crypto, portável Bun/Worker), não mais env var única; bootstrap cria o owner do env
+- [x] **Organizações/teams** — tabelas `orgs` + `org_members`; projetos têm `org_id` (backfill na org default); membros veem só projetos da org
+- [x] **Roles** — owner (tudo) / member (leitura + triagem); mutações de projeto e gestão de usuários são owner-only; convites por email pendentes (sem SMTP)
+- [x] **API tokens** — Bearer para automação (CI, upload de sourcemap), com revogação e lastUsedAt
+- [x] **2FA** — TOTP (RFC 6238, HMAC-SHA1 via Web Crypto) com URI otpauth, confirmação e exigência no login
+- [ ] **SSO** — Google/GitHub OAuth fica pendente (exige client id/secret; infra pronta para adicionar)
 
 ## Fase 8 — Sourcemaps & simbolização 🧪 (o item mais difícil)
 

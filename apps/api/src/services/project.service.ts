@@ -76,6 +76,10 @@ export async function rotateProjectKey(id: number): Promise<string> {
   return key;
 }
 
+export async function assignOrg(id: number, orgId: number) {
+  await db.update(projects).set({ orgId }).where(eq(projects.id, id)).run();
+}
+
 /**
  * Deleta o projeto e TUDO que referencia ele (cascade manual — ordem importa
  * por causa das foreign keys: no D1 o FK é enforceado e o DELETE falha se

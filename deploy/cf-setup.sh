@@ -73,29 +73,9 @@ bun install
 bun run build
 echo "✓ build ok"
 
-echo "== 5. senha do dashboard (ADMIN_PASSWORD) =="
-# A Cloudflare NÃO pode gerar senha aleatória (isolates efêmeros — cada um teria
-# uma senha diferente e o login ficaria impossível). A senha TEM que ser definida.
-PW=""
-if [ -n "${CF_ADMIN_PASSWORD:-}" ]; then
-  PW="$CF_ADMIN_PASSWORD"
-elif wrangler secret list 2>/dev/null | grep -q ADMIN_PASSWORD; then
-  echo "✓ ADMIN_PASSWORD já existe (mantendo)"
-else
-  while true; do
-    read -rsp "Defina a senha do dashboard (login: admin): " PW; echo
-    [ -n "$PW" ] && break
-  done
-  read -rsp "Confirme a senha: " PW2; echo
-  if [ "$PW" != "$PW2" ]; then
-    echo "✗ senhas não conferem — rode o script de novo"
-    exit 1
-  fi
-fi
-if [ -n "$PW" ]; then
-  echo "$PW" | wrangler secret put ADMIN_PASSWORD >/dev/null
-  echo "✓ ADMIN_PASSWORD definida"
-fi
+echo "== 5. senha do dashboard =="
+echo "  (nenhuma senha é configurada aqui — o primeiro acesso ao dashboard mostra"
+echo "   o onboarding: crie o usuário owner direto no navegador.)"
 
 echo "== 6. deploy =="
 wrangler deploy
@@ -104,6 +84,7 @@ echo
 echo "=============================================================="
 echo " Pronto!"
 echo " - Dashboard: https://sentrylike.<seu-subdominio>.workers.dev"
+echo " - PRIMEIRO ACESSO: abra o dashboard e crie o usuário owner (onboarding)"
 echo " - A chave do projeto demo aparece em /v1/projects (ou nos logs)"
 echo " - DSN do demo: http://<public_key>@sentrylike.<subdominio>.workers.dev/1"
 echo "=============================================================="

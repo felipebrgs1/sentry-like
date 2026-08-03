@@ -4,11 +4,13 @@ import * as project from "../controllers/project.controller";
 
 export const projectRoutes = new Elysia({ prefix: "/v1" })
   .onBeforeHandle(authGuard)
-  .get("/projects", ({ request }) => project.list({ request }))
-  .post("/projects", ({ body }) => project.create({ body }), {
+  .get("/projects", ({ request, store }) => project.list({ request, store }))
+  .post("/projects", ({ body, store, set }) => project.create({ body, store, set }), {
     body: t.Object({ name: t.String({ minLength: 1, maxLength: 120 }) }),
   })
-  .get("/projects/:id", ({ params, request, set }) => project.get({ params, request, set }))
+  .get("/projects/:id", ({ params, request, set, store }) =>
+    project.get({ params, request, set, store }),
+  )
   .get("/projects/:id/issues", ({ params, query }) => project.issues({ params, query }), {
     query: t.Object({
       status: t.Optional(t.String()),
@@ -34,11 +36,17 @@ export const projectRoutes = new Elysia({ prefix: "/v1" })
   .delete("/saved-searches/:id", ({ params, set }) => project.removeSavedSearch({ params, set }))
   .get("/projects/:id/environments", ({ params }) => project.environments({ params }))
   .get("/projects/:id/releases", ({ params }) => project.releases({ params }))
-  .patch("/projects/:id", ({ params, body, set }) => project.update({ params, body, set }), {
-    body: t.Object({
-      name: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
-      allowedDomains: t.Optional(t.Array(t.String())),
-    }),
-  })
-  .post("/projects/:id/rotate-key", ({ params, set }) => project.rotateKey({ params, set }))
-  .delete("/projects/:id", ({ params, set }) => project.remove({ params, set }));
+  .patch(
+    "/projects/:id",
+    ({ params, body, set, store }) => project.update({ params, body, set, store }),
+    {
+      body: t.Object({
+        name: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
+        allowedDomains: t.Optional(t.Array(t.String())),
+      }),
+    },
+  )
+  .post("/projects/:id/rotate-key", ({ params, set, store }) =>
+    project.rotateKey({ params, set, store }),
+  )
+  .delete("/projects/:id", ({ params, set, store }) => project.remove({ params, set, store }));

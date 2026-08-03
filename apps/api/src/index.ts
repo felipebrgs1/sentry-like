@@ -6,25 +6,22 @@ import { projects } from "./db/schema";
 import { routes } from "./routes";
 import { runRetention } from "./lib/retention";
 import { runAlertChecks } from "./services/alert.service";
-import { adminPassword, ADMIN_USER, PASSWORD_WAS_GENERATED, PORT } from "./config";
+import { ensureBootstrap, defaultOrgId } from "./services/user.service";
+import { PORT } from "./config";
 
 // Bootstrap do banco (bun:sqlite, VPS) antes de servir qualquer request
 await initBunDb();
+await ensureBootstrap();
 
 // Seed de um projeto demo para o DSN funcionar de cara
 if ((await db.select().from(projects).all()).length === 0) {
   const key = crypto.randomUUID().replace(/-/g, "");
+  const orgId = await defaultOrgId();
   await db
     .insert(projects)
-    .values({ name: "Demo Project", publicKey: key, createdAt: Date.now() })
+    .values({ name: "Demo Project", publicKey: key, createdAt: Date.now(), orgId })
     .run();
   console.log(`[sentrylike] seeded "Demo Project" (id=1), public key: ${key}`);
-}
-
-if (PASSWORD_WAS_GENERATED) {
-  console.log(`[sentrylike] ADMIN_PASSWORD not set — generated password: ${adminPassword()}`);
-  console.log(`[sentrylike] dashboard login: user "${ADMIN_USER}" / senha acima`);
-  console.log("[sentrylike] set ADMIN_PASSWORD env var to make it stable across restarts");
 }
 
 /**

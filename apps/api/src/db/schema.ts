@@ -5,6 +5,49 @@ export const projects = sqliteTable("projects", {
   name: text("name").notNull(),
   publicKey: text("public_key").notNull().unique(),
   allowedDomains: text("allowed_domains"), // JSON array de domínios permitidos (CORS)
+  orgId: integer("org_id"), // Fase 7: organização dona do projeto
+  createdAt: integer("created_at").notNull(),
+});
+
+// Fase 7 — multi-usuário & organizações
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  passwordHash: text("password_hash").notNull(), // pbkdf2:<iters>:<salt>:<hash>
+  isOwner: integer("is_owner").notNull().default(0), // role global (simplificado)
+  totpSecret: text("totp_secret"), // base32
+  totpEnabled: integer("totp_enabled").notNull().default(0),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const orgs = sqliteTable("orgs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const orgMembers = sqliteTable("org_members", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  orgId: integer("org_id")
+    .notNull()
+    .references(() => orgs.id),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  role: text("role").notNull().default("member"), // owner | member
+  createdAt: integer("created_at").notNull(),
+});
+
+export const apiTokens = sqliteTable("api_tokens", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  token: text("token").notNull().unique(),
+  lastUsedAt: integer("last_used_at"),
   createdAt: integer("created_at").notNull(),
 });
 
@@ -52,6 +95,7 @@ export const savedSearches = sqliteTable("saved_searches", {
 
 export const sessions = sqliteTable("sessions", {
   token: text("token").primaryKey(),
+  userId: integer("user_id"), // Fase 7: dono da sessão
   createdAt: integer("created_at").notNull(),
   expiresAt: integer("expires_at").notNull(),
 });

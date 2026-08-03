@@ -67,9 +67,10 @@ bun install
 bun run dev          # API em :3001, web em :5173 (com proxy)
 ```
 
-Nos logs da API você verá o **ADMIN_USER/ADMIN_PASSWORD** (gerados se não setados) e a
-**public key** do "Demo Project" seedado. Abra http://localhost:5173, entre com
-usuário e senha, e copie o DSN do projeto.
+Sem usuários, o dashboard mostra o **onboarding** (crie o owner: nome/email/senha).
+Abra http://localhost:5173, crie o primeiro usuário e copie o DSN do projeto.
+(Deploy automatizado pode definir `ADMIN_USER`/`ADMIN_PASSWORD` no env — o owner é
+criado no primeiro boot.)
 
 Enviar um evento de teste sem SDK:
 
@@ -116,8 +117,7 @@ Sentry.init({ dsn: "https://<public_key>@errors.seudominio.com/1" });
 | Env                    | Default           | Descrição                                 |
 | ---------------------- | ----------------- | ----------------------------------------- |
 | `PORT`                 | `3000`            | Porta da API                              |
-| `ADMIN_USER`           | `admin`           | Usuário do dashboard                      |
-| `ADMIN_PASSWORD`       | gerada (ver logs) | Senha do dashboard                        |
+| `ADMIN_USER`/`ADMIN_PASSWORD` | (opcional) | Cria o owner automaticamente no 1º boot (docker/CI); sem isso, onboarding no front |
 | `DATABASE_PATH`        | `sentrylike.db`   | Caminho do SQLite (`/data/...` no Docker) |
 | `DATA_DIR`             | `./blobs`         | Anexos e replays em disco (junto do DB)   |
 | `RETENTION_DAYS`       | `30`              | Apaga eventos mais velhos que N dias      |

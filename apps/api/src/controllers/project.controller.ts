@@ -1,16 +1,28 @@
 import type { HandlerContext } from "./types";
 import * as projectService from "../services/project.service";
 import * as issueService from "../services/issue.service";
+import * as userService from "../services/user.service";
 import type { ProjectWithStats } from "@sentrylike/shared";
 
-/** GET /v1/projects — com DSN e contadores */
+/** Owner pode tudo; mutações de projeto (criar/renomear/rotacionar/deletar) são owner-only. */
+function requireOwner(ctx: Pick<HandlerContext, "store" | "set">): boolean {
+  if (!ctx.store.user?.isOwner) {
+    ctx.set.status = 403;
+    return false;
+  }
+  return true;
+}
+
+/** GET /v1/projects — com DSN e contadores (filtrado pela org do usuário) */
 export async function list({
   request,
-}: Pick<HandlerContext, "request">): Promise<ProjectWithStats[]> {
+  store,
+}: Pick<HandlerContext, "request" | "store">): Promise<ProjectWithStats[]> {
   const origin = new URL(request.url).origin;
   const projects = await projectService.listProjects();
+  const visible = store.user?.isOwner ? projects : await filterByOrg(projects, store.user?.id ?? 0);
   const out: ProjectWithStats[] = [];
-  for (const p of projects) {
+  for (const p of visible) {
     out.push({
       ...p,
       dsn: projectService.buildDsn(origin, p.publicKey, p.id),
@@ -21,9 +33,27 @@ export async function list({
   return out;
 }
 
+async function filterByOrg(
+  all: Awaited<ReturnType<typeof projectService.listProjects>>,
+  userId: number,
+) {
+  const orgs = await userService.listUserOrgs(userId);
+  const orgIds = new Set(orgs.map((o) => o.id));
+  return all.filter((p) => p.orgId != null && orgIds.has(p.orgId));
+}
+
 /** POST /v1/projects */
-export async function create({ body }: { body: { name: string } }) {
-  return projectService.createProject(body.name);
+export async function create({
+  body,
+  store,
+  set,
+}: { body: { name: string } } & Pick<HandlerContext, "store" | "set">) {
+  if (!requireOwner({ store, set })) return { error: "owner only" };
+  const project = await projectService.createProject(body.name);
+  // projeto entra na org default
+  const orgId = await userService.defaultOrgId();
+  if (orgId) await projectService.assignOrg(project.id, orgId);
+  return project;
 }
 
 /** GET /v1/projects/:id — com DSN e domínios permitidos */
@@ -31,11 +61,16 @@ export async function get({
   params,
   request,
   set,
-}: Pick<HandlerContext, "params" | "request" | "set">) {
+  store,
+}: Pick<HandlerContext, "params" | "request" | "set" | "store">) {
   const p = await projectService.getProject(Number(params.id));
   if (!p) {
     set.status = 404;
     return { error: "not found" };
+  }
+  if (!(await userService.hasOrgAccess(store.user!, p.orgId))) {
+    set.status = 403;
+    return { error: "forbidden" };
   }
   return {
     ...p,
@@ -105,9 +140,11 @@ export async function update({
   params,
   body,
   set,
-}: Pick<HandlerContext, "params" | "body" | "set"> & {
+  store,
+}: Pick<HandlerContext, "params" | "body" | "set" | "store"> & {
   body: { name?: string; allowedDomains?: string[] };
 }) {
+  if (!requireOwner({ store, set })) return { error: "owner only" };
   const project = await projectService.getProject(Number(params.id));
   if (!project) {
     set.status = 404;
@@ -126,7 +163,12 @@ export async function update({
 }
 
 /** POST /v1/projects/:id/rotate-key */
-export async function rotateKey({ params, set }: Pick<HandlerContext, "params" | "set">) {
+export async function rotateKey({
+  params,
+  set,
+  store,
+}: Pick<HandlerContext, "params" | "set" | "store">) {
+  if (!requireOwner({ store, set })) return { error: "owner only" };
   if (!(await projectService.getProject(Number(params.id)))) {
     set.status = 404;
     return { error: "not found" };
@@ -135,7 +177,12 @@ export async function rotateKey({ params, set }: Pick<HandlerContext, "params" |
 }
 
 /** DELETE /v1/projects/:id */
-export async function remove({ params, set }: Pick<HandlerContext, "params" | "set">) {
+export async function remove({
+  params,
+  set,
+  store,
+}: Pick<HandlerContext, "params" | "set" | "store">) {
+  if (!requireOwner({ store, set })) return { error: "owner only" };
   if (!(await projectService.deleteProject(Number(params.id)))) {
     set.status = 404;
     return { error: "not found" };

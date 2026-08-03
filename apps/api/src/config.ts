@@ -12,15 +12,6 @@ export const RATE_LIMIT_PER_MIN = Number(process.env.RATE_LIMIT_PER_MIN ?? 600);
 export const DATA_DIR = process.env.DATA_DIR ?? join(dirname(DATABASE_PATH), "blobs");
 export const MAX_ATTACHMENT_BYTES = Number(process.env.MAX_ATTACHMENT_BYTES ?? 5 * 1024 * 1024);
 
-// Dashboard user (single-user mode)
-export const ADMIN_USER = process.env.ADMIN_USER?.trim() || "admin";
-export const PASSWORD_WAS_GENERATED = !process.env.ADMIN_PASSWORD?.trim();
-// lazy + memoized: crypto.randomUUID é proibido em escopo global no Worker (só dentro de handler)
-let cachedPassword: string | null = null;
-export function adminPassword(): string {
-  cachedPassword ??= process.env.ADMIN_PASSWORD?.trim() || crypto.randomUUID();
-  return cachedPassword;
-}
 export const SESSION_TTL_MS = 7 * 24 * 3600 * 1000; // 7 dias
 
 // URL pública do dashboard — usada nos links dos alertas (VPS: env; CF: [vars])

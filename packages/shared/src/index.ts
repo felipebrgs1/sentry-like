@@ -89,6 +89,7 @@ export interface Project {
   name: string;
   publicKey: string;
   allowedDomains: string | null;
+  orgId: number | null; // Fase 7: organização dona do projeto
   createdAt: number;
 }
 
@@ -420,4 +421,32 @@ export interface UserReport {
   email: string | null;
   comments: string | null;
   timestamp: number;
+}
+
+// ------------------------------------------------------------------
+// Multi-usuário (Fase 7)
+// ------------------------------------------------------------------
+
+export interface User {
+  id: number;
+  email: string;
+  name: string;
+  isOwner: number; // 0 | 1
+  totpEnabled: number; // 0 | 1
+  createdAt: number;
+}
+
+export interface Org {
+  id: number;
+  name: string;
+  slug: string;
+  createdAt: number;
+}
+
+export interface ApiToken {
+  id: number;
+  userId: number;
+  name: string;
+  lastUsedAt: number | null;
+  createdAt: number;
 }

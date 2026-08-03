@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ChartNoAxesColumn, FolderKanban, Gauge, LayoutGrid, LogOut } from "lucide-react";
-import type { ProjectWithStats } from "@sentrylike/shared";
+import { ChartNoAxesColumn, FolderKanban, Gauge, LayoutGrid, LogOut, Settings } from "lucide-react";
+import type { ProjectWithStats, User } from "@sentrylike/shared";
 import { api, logout } from "@/api";
 import { SentrylikeLogo } from "./SentrylikeLogo";
 import {
@@ -26,6 +26,11 @@ export function AppSidebar() {
     queryKey: ["projects"],
     queryFn: () => api<ProjectWithStats[]>("/v1/projects"),
     refetchInterval: 30_000,
+  });
+
+  const { data: me } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => api<{ user: User | null }>("/v1/auth/me"),
   });
 
   async function handleLogout() {
@@ -111,6 +116,12 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton render={<Link to="/settings" />}>
+              <Settings />
+              <span>{me?.user?.name ?? "Configurações"}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={handleLogout}>
               <LogOut />

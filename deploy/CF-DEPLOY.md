@@ -28,8 +28,8 @@ O script:
 2. cria o banco **D1**, o bucket **R2** e o **KV** e **preenche os placeholders** do
    `wrangler.toml` automaticamente (nada de editar ID à mão)
 3. roda `bun install && bun run build`
-4. pergunta a senha do dashboard (ou use `CF_ADMIN_PASSWORD=... bash deploy/cf-setup.sh`)
-5. `wrangler deploy`
+4. `wrangler deploy`
+5. **Abra o dashboard e crie o primeiro usuário (onboarding)** — o script não configura senha
 
 No final ele imprime a URL do dashboard e como pegar o DSN do projeto demo.
 
@@ -49,14 +49,17 @@ Se não quiser rodar nada local além do clone inicial:
    wrangler kv namespace create RATE_LIMIT_KV
    # cole os IDs no wrangler.toml (ou rode o cf-setup.sh uma vez num terminal)
    ```
-5. Defina o secret: `echo 'sua-senha' | wrangler secret put ADMIN_PASSWORD`
-
 Depois disso, cada push na branch default faz deploy automático.
+
+> **Primeiro acesso**: sem usuários, o dashboard mostra o onboarding — crie o owner
+> (nome/email/senha) direto no navegador. Depois disso, só login normal.
+> ⚠️ Em URL pública, abra o onboarding você mesmo logo após o deploy (o primeiro
+> visitante que completar o setup vira o owner).
 
 ## Depois do deploy
 
 - **Dashboard**: `https://sentrylike.<seu-subdominio>.workers.dev`
-- **Login**: user `admin` + a senha definida (secret `ADMIN_PASSWORD`)
+- **Login**: o usuário criado no onboarding (ou via `ADMIN_USER`/`ADMIN_PASSWORD` no env, para deploy automatizado)
 - **DSN do projeto demo**: pegue a `publicKey` em `/v1/projects` no dashboard →
   `http://<public_key>@sentrylike.<subdominio>.workers.dev/1`
 - **SDK do Sentry**: qualquer SDK oficial aponta esse DSN — erros e transações vão
@@ -66,7 +69,7 @@ Depois disso, cada push na branch default faz deploy automático.
 
 | Var | Onde | Default | Efeito |
 |---|---|---|---|
-| `ADMIN_PASSWORD` | secret | aleatória | senha do dashboard |
+| `ADMIN_USER` / `ADMIN_PASSWORD` | env (opcional) | — | cria o owner automaticamente no 1º boot (docker/CI); sem isso, onboarding no front |
 | `ADMIN_USER` | `[vars]` | `admin` | usuário do dashboard |
 | `RATE_LIMIT_PER_MIN` | `[vars]` | `600` | limite de eventos/min/projeto |
 | `RETENTION_DAYS` | `[vars]` | `30` | dias de retenção (cron roda 3h da manhã) |
@@ -83,8 +86,8 @@ git pull
 bash deploy/cf-setup.sh
 ```
 
-O script detecta que D1/R2/KV já existem (IDs reais no `wrangler.toml`) e a senha já está
-definida — ele só roda `bun install && bun run build && wrangler deploy`.
+O script detecta que D1/R2/KV já existem (IDs reais no `wrangler.toml`) — ele só roda
+`bun install && bun run build && wrangler deploy`.
 
 **Caminho B (integração Git):** cada push na branch default já faz deploy automático —
 upgrade é só `git push`.
@@ -121,7 +124,7 @@ parar de trackear (o arquivo local continua).
 - **Schema não reverte**: se a nova versão rodou ALTERs no D1, voltar o código para a versão
   antiga **funciona** (código antigo ignora colunas extras) — desde que a migração seja aditiva,
   que é a regra do projeto. Nunca remova colunas sem um plano de migração.
-- **Secrets/vars**: `wrangler secret put` e `[vars]` sobrevivem ao deploy/rollback — não precisa refazer.
+- **Env vars** (ex.: `ADMIN_USER`/`ADMIN_PASSWORD` para bootstrap automático) sobrevivem ao deploy/rollback — não precisa refazer.
 
 ## Limitações conscientes na Cloudflare
 
