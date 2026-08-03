@@ -250,6 +250,7 @@ const IGNORE_OPTIONS: Array<{ label: string; ms: number | null }> = [
 
 export function ProjectIssuesPage() {
   const { projectId } = useParams({ from: "/_app/projects/$projectId" });
+  const navigate = useNavigate();
   const [status, setStatus] = useState<IssueStatus>("unresolved");
   const [q, setQ] = useState("");
   const [level, setLevel] = useState("");
@@ -407,6 +408,25 @@ export function ProjectIssuesPage() {
               <ProjectSettings project={project} onChanged={() => {}} />
             </>
           )}
+          <div className="ml-auto">
+            <Tabs
+              value="issues"
+              onValueChange={(v) =>
+                navigate({
+                  to:
+                    v === "performance"
+                      ? "/projects/$projectId/performance"
+                      : "/projects/$projectId",
+                  params: { projectId },
+                })
+              }
+            >
+              <TabsList>
+                <TabsTrigger value="issues">Issues</TabsTrigger>
+                <TabsTrigger value="performance">Performance</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
       </div>
 

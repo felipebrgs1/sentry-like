@@ -15,7 +15,8 @@
     "format": "oxfmt --write apps packages scripts",
     "format:check": "oxfmt --check apps packages scripts",
     "start": "bun apps/api/src/index.ts",
-    "demo:event": "bun scripts/send-test-event.ts"
+    "demo:event": "bun scripts/send-test-event.ts",
+    "demo:transaction": "bun scripts/send-test-transaction.ts"
   },
   "devDependencies": {
     "oxfmt": "^0.61.0",

@@ -8,6 +8,8 @@ import {
   issues,
   replays,
   sentrySessions,
+  spans,
+  transactions,
   userReports,
 } from "../db/schema";
 import { computeFingerprint } from "../lib/fingerprint";
@@ -134,6 +136,90 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
     })
     .onConflictDoNothing() // retry do SDK manda o mesmo event_id
     .run();
+
+  return id;
+}
+
+// ------------------------------------------------------------------
+// Transactions / spans (Fase 4 — performance)
+// ------------------------------------------------------------------
+
+interface TransactionContext {
+  trace_id?: string;
+  span_id?: string;
+  parent_span_id?: string;
+  status?: string;
+}
+
+function browserFrom(event: SentryEvent): string | null {
+  const b = event.contexts?.browser as { name?: string; version?: string } | undefined;
+  if (!b?.name) return null;
+  return b.version ? `${b.name} ${b.version}` : b.name;
+}
+
+/**
+ * Persiste uma transaction com seus spans (waterfall).
+ * Timestamps do protocolo são segundos (float) — normaliza para ms.
+ */
+export function storeTransaction(projectId: number, event: SentryEvent): string | null {
+  const id = (event.event_id ?? crypto.randomUUID()).replace(/-/g, "");
+  const end = normalizeTimestamp(event.timestamp);
+  const start = normalizeTimestamp(event.start_timestamp ?? event.timestamp);
+  const duration = Math.max(0, Math.round(end - start));
+  const trace = (event.contexts?.trace ?? {}) as TransactionContext;
+
+  const measurements =
+    event.measurements && Object.keys(event.measurements).length ? event.measurements : null;
+
+  db.insert(transactions)
+    .values({
+      id,
+      projectId,
+      name: (event.transaction ?? event.message ?? "unknown").slice(0, 300),
+      timestamp: start,
+      duration,
+      status: event.type === "transaction" ? ((trace.status as string) ?? "ok") : "ok",
+      release: event.release ?? null,
+      environment: event.environment ?? null,
+      platform: event.platform ?? null,
+      browser: browserFrom(event),
+      country:
+        ((event.user as { geo?: { country_code?: string } } | undefined)?.geo?.country_code ??
+          null) ||
+        null,
+      traceId: trace.trace_id ?? null,
+      spanId: trace.span_id ?? null,
+      parentSpanId: trace.parent_span_id ?? null,
+      measurements: measurements ? JSON.stringify(measurements) : null,
+      payload: JSON.stringify(event),
+    })
+    .onConflictDoNothing() // retry do SDK manda o mesmo event_id
+    .run();
+
+  const rootStart = start;
+  const rootEnd = end;
+  for (const s of event.spans ?? []) {
+    const sStart = normalizeTimestamp(s.start_timestamp ?? s.timestamp);
+    const sEnd = normalizeTimestamp(s.timestamp ?? s.start_timestamp);
+    if (!s.span_id || (sStart === rootStart && sEnd === rootEnd)) continue; // span é a própria transaction
+    db.insert(spans)
+      .values({
+        id: s.span_id,
+        transactionId: id,
+        projectId,
+        traceId: s.trace_id ?? trace.trace_id ?? null,
+        parentSpanId: s.parent_span_id ?? null,
+        op: s.op ?? null,
+        description: s.description ?? null,
+        startTimestamp: sStart,
+        endTimestamp: sEnd,
+        duration: Math.max(0, Math.round(sEnd - sStart)),
+        status: s.status ?? null,
+        payload: JSON.stringify(s),
+      })
+      .onConflictDoNothing()
+      .run();
+  }
 
   return id;
 }

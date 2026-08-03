@@ -105,6 +105,40 @@ CREATE TABLE IF NOT EXISTS client_reports (
   discarded TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS client_reports_project ON client_reports(project_id);
+CREATE TABLE IF NOT EXISTS transactions (
+  id TEXT PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  name TEXT NOT NULL,
+  timestamp INTEGER NOT NULL,
+  duration INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ok',
+  release TEXT,
+  environment TEXT,
+  platform TEXT,
+  browser TEXT,
+  trace_id TEXT,
+  span_id TEXT,
+  parent_span_id TEXT,
+  measurements TEXT,
+  payload TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS transactions_project_ts ON transactions(project_id, timestamp);
+CREATE INDEX IF NOT EXISTS transactions_name_ts ON transactions(name, timestamp);
+CREATE TABLE IF NOT EXISTS spans (
+  id TEXT PRIMARY KEY,
+  transaction_id TEXT NOT NULL REFERENCES transactions(id),
+  project_id INTEGER NOT NULL,
+  trace_id TEXT,
+  parent_span_id TEXT,
+  op TEXT,
+  description TEXT,
+  start_timestamp INTEGER,
+  end_timestamp INTEGER,
+  duration INTEGER,
+  status TEXT,
+  payload TEXT
+);
+CREATE INDEX IF NOT EXISTS spans_transaction ON spans(transaction_id);
 `);
 
 // Colunas adicionadas depois do schema inicial — idempotente em DBs existentes
@@ -125,6 +159,13 @@ for (const stmt of [
   "CREATE INDEX IF NOT EXISTS events_original_issue ON events(original_issue_id)",
   "CREATE TABLE IF NOT EXISTS saved_searches (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL REFERENCES projects(id), name TEXT NOT NULL, filters TEXT NOT NULL, created_at INTEGER NOT NULL)",
   "CREATE INDEX IF NOT EXISTS saved_searches_project ON saved_searches(project_id)",
+  // Fase 4
+  "CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id), name TEXT NOT NULL, timestamp INTEGER NOT NULL, duration INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'ok', release TEXT, environment TEXT, platform TEXT, browser TEXT, trace_id TEXT, span_id TEXT, parent_span_id TEXT, measurements TEXT, payload TEXT NOT NULL)",
+  "ALTER TABLE transactions ADD COLUMN country TEXT",
+  "CREATE INDEX IF NOT EXISTS transactions_project_ts ON transactions(project_id, timestamp)",
+  "CREATE INDEX IF NOT EXISTS transactions_name_ts ON transactions(name, timestamp)",
+  "CREATE TABLE IF NOT EXISTS spans (id TEXT PRIMARY KEY, transaction_id TEXT NOT NULL REFERENCES transactions(id), project_id INTEGER NOT NULL, trace_id TEXT, parent_span_id TEXT, op TEXT, description TEXT, start_timestamp INTEGER, end_timestamp INTEGER, duration INTEGER, status TEXT, payload TEXT)",
+  "CREATE INDEX IF NOT EXISTS spans_transaction ON spans(transaction_id)",
 ]) {
   try {
     sqlite.exec(stmt);

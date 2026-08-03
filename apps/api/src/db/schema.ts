@@ -130,6 +130,56 @@ export const clientReports = sqliteTable(
   (t) => [index("client_reports_project").on(t.projectId)],
 );
 
+// Fase 4 — Performance: transactions + spans (JSON, sem ClickHouse)
+export const transactions = sqliteTable(
+  "transactions",
+  {
+    id: text("id").primaryKey(), // event_id sem hífens
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id),
+    name: text("name").notNull(), // rota / transaction name
+    timestamp: integer("timestamp").notNull(), // início (ms)
+    duration: integer("duration").notNull(), // ms
+    status: text("status").notNull().default("ok"), // ok | error | cancelled | aborted | unknown
+    release: text("release"),
+    environment: text("environment"),
+    platform: text("platform"),
+    browser: text("browser"), // contexts.browser name+version
+    country: text("country"), // user.geo.country_code
+    traceId: text("trace_id"),
+    spanId: text("span_id"),
+    parentSpanId: text("parent_span_id"),
+    measurements: text("measurements"), // JSON de web vitals
+    payload: text("payload").notNull(),
+  },
+  (t) => [
+    index("transactions_project_ts").on(t.projectId, t.timestamp),
+    index("transactions_name_ts").on(t.name, t.timestamp),
+  ],
+);
+
+export const spans = sqliteTable(
+  "spans",
+  {
+    id: text("id").primaryKey(), // span_id
+    transactionId: text("transaction_id")
+      .notNull()
+      .references(() => transactions.id),
+    projectId: integer("project_id").notNull(),
+    traceId: text("trace_id"),
+    parentSpanId: text("parent_span_id"),
+    op: text("op"),
+    description: text("description"),
+    startTimestamp: integer("start_timestamp"), // ms absoluto
+    endTimestamp: integer("end_timestamp"),
+    duration: integer("duration"), // ms
+    status: text("status"),
+    payload: text("payload"),
+  },
+  (t) => [index("spans_transaction").on(t.transactionId)],
+);
+
 export const events = sqliteTable(
   "events",
   {

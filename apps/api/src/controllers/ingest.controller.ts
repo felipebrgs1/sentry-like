@@ -127,9 +127,10 @@ async function processEnvelope(
       }
       case "transaction": {
         if (limited("transaction")) break;
-        // fase 4: transactions ainda não são persistidas — só conta no rate limit
-        const evt = JSON.parse(text) as { event_id?: string };
-        lastEventId ??= evt.event_id ?? null;
+        // Fase 4: persiste transaction + spans para o waterfall/performance
+        const evt = JSON.parse(text) as SentryEvent;
+        const stored = ingestService.storeTransaction(project.id, evt);
+        lastEventId ??= stored ?? evt.event_id ?? null;
         break;
       }
       case "attachment": {
@@ -220,6 +221,10 @@ export async function store(ctx: HandlerContext) {
     if (!res.ok) {
       ctx.set.status = 400;
       return { detail: res.error };
+    }
+    // SDKs que enviam transactions pelo /store/ legado
+    if (res.event.type === "transaction") {
+      return { id: ingestService.storeTransaction(project.id, res.event) ?? "ignored" };
     }
     return { id: ingestService.storeEvent(project.id, res.event) };
   } catch {

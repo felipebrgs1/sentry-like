@@ -24,6 +24,7 @@ if (PASSWORD_WAS_GENERATED) {
 setInterval(() => {
   const cutoff = Date.now() - RETENTION_DAYS * 86400_000;
   db.run(sql`DELETE FROM events WHERE timestamp < ${cutoff}`);
+  db.run(sql`DELETE FROM transactions WHERE timestamp < ${cutoff}`);
 }, 3600_000).unref();
 
 // --- static dashboard (build de produção) ---

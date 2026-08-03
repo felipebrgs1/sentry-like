@@ -22,6 +22,18 @@ export interface SentryExceptionValue {
   stacktrace?: { frames?: SentryStackFrame[] };
 }
 
+export interface SentrySpan {
+  span_id?: string;
+  trace_id?: string;
+  parent_span_id?: string;
+  op?: string;
+  description?: string;
+  status?: string;
+  start_timestamp?: number;
+  timestamp?: number;
+  data?: Record<string, unknown>;
+}
+
 export interface SentryBreadcrumb {
   timestamp?: number;
   type?: string;
@@ -35,7 +47,11 @@ export type SentryTags = Record<string, string> | Array<[string, string]>;
 
 export interface SentryEvent {
   event_id?: string;
+  type?: string; // "error" | "transaction" | ...
   fingerprint?: string[]; // fingerprint custom enviado pelo SDK
+  start_timestamp?: number | string; // transactions: início em segundos
+  spans?: SentrySpan[]; // transactions: filhos
+  measurements?: Record<string, { value?: number; unit?: string }>; // web vitals
   timestamp?: number | string;
   platform?: string;
   level?: string;
@@ -172,4 +188,81 @@ export interface OverviewStats {
   events7d: number;
   eventsPerDay: DayCount[];
   projects: ProjectStat[];
+}
+
+// ------------------------------------------------------------------
+// Performance / transactions (Fase 4)
+// ------------------------------------------------------------------
+
+export interface Transaction {
+  id: string;
+  projectId: number;
+  name: string; // rota / transaction name
+  timestamp: number; // início (ms)
+  duration: number; // ms
+  status: string; // ok | error | cancelled | aborted | unknown
+  release: string | null;
+  environment: string | null;
+  platform: string | null;
+  browser: string | null;
+  country: string | null;
+  traceId: string | null;
+  spanId: string | null;
+  parentSpanId: string | null;
+  measurements: Record<string, { value?: number; unit?: string }> | null;
+}
+
+export interface TransactionDetail extends Transaction {
+  spans: Span[];
+}
+
+export interface Span {
+  id: string;
+  transactionId: string;
+  traceId: string | null;
+  parentSpanId: string | null;
+  op: string | null;
+  description: string | null;
+  startTimestamp: number | null; // ms (absoluto, relativo ao epoch)
+  endTimestamp: number | null;
+  duration: number | null; // ms
+  status: string | null;
+}
+
+export interface TransactionSummary {
+  name: string;
+  count: number;
+  p50: number;
+  p95: number;
+  p99: number;
+  avg: number;
+  errorCount: number;
+  errorRate: number; // 0..1
+  firstSeen: number;
+  lastSeen: number;
+  throughput: number; // eventos/hora
+}
+
+export interface DayStat {
+  date: string;
+  count: number;
+  avg: number;
+}
+
+export interface VitalsStat {
+  p50: number | null;
+  p75: number | null;
+  p95: number | null;
+  count: number;
+}
+
+export type VitalsMap = Partial<Record<"lcp" | "fcp" | "cls" | "ttfb" | "inp" | "fp", VitalsStat>>;
+
+export interface ReleasePerformance {
+  release: string | null;
+  count: number;
+  avg: number;
+  p95: number;
+  errorRate: number;
+  lastSeen: number;
 }

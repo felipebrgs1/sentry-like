@@ -21,6 +21,7 @@
 | Projetos: CRUD, DSN, rotate key, settings                              | ✅     |
 | Auth single-user com sessão                                            | ✅     |
 | Deploy: 1 container, SQLite, retenção                                  | ✅     |
+| Performance: transactions/spans, waterfall, p50/p95/p99, web vitals, release-perf | ✅ |
 
 ---
 
@@ -57,16 +58,16 @@ Deixar a ingestão 100% compatível com o protocolo do Sentry.
 - [ ] **Ambiente múltiplo por issue** — mostrar distribuição (hoje: coluna com o último)
 - [ ] **Distribuição de eventos por ambiente/release** — no gráfico de frequência
 
-## Fase 4 — Performance (transactions) 📋
+## Fase 4 — Performance (transactions) ✅
 
 O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 
-- [ ] **Ingestão de transactions/spans** — nova tabela `transactions` + `spans` (payload JSON, sem ClickHouse)
-- [ ] **Waterfall de spans** — visualização temporal do trace
-- [ ] **Métricas** — p50/p95/p99, taxa de erro, throughput por endpoint
-- [ ] **Web vitals** — LCP, FCP, CLS, TTFB, INP (browser SDK já envia nos contexts)
-- [ ] **Transações por release** — comparar performance entre deploys
-- [ ] **Segmentação** — por rota, browser, país (dados que já vêm no payload)
+- [x] **Ingestão de transactions/spans** — tabelas `transactions` + `spans` (payload JSON, sem ClickHouse); itens de envelope `transaction` e `/store/` legado
+- [x] **Waterfall de spans** — visualização temporal do trace (CSS puro); transaction raiz sintetizada como span 0
+- [x] **Métricas** — p50/p95/p99, média, taxa de erro, throughput por endpoint (`transaction-summaries`), série diária
+- [x] **Web vitals** — LCP, FCP, CLS, TTFB, INP, FP (measurements do browser SDK) com p50/p75/p95
+- [x] **Transações por release** — `release-performance` comparando deploys + filtro de release em tudo
+- [x] **Segmentação** — por rota (grouping por name), browser (`contexts.browser`), país (`user.geo.country_code`)
 
 ## Fase 5 — Alertas & notificações 📋
 
