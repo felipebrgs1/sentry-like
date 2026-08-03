@@ -47,6 +47,56 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS events_project_ts ON events(project_id, timestamp);
 CREATE INDEX IF NOT EXISTS events_issue ON events(issue_id);
+CREATE TABLE IF NOT EXISTS sentry_sessions (
+  sid TEXT PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  release TEXT,
+  environment TEXT,
+  started INTEGER,
+  timestamp INTEGER,
+  duration INTEGER,
+  status TEXT,
+  errors INTEGER,
+  did TEXT,
+  payload TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS attachments (
+  id TEXT PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  event_id TEXT,
+  name TEXT NOT NULL,
+  content_type TEXT,
+  size INTEGER NOT NULL,
+  stored_path TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS attachments_project ON attachments(project_id);
+CREATE TABLE IF NOT EXISTS user_reports (
+  event_id TEXT PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  name TEXT,
+  email TEXT,
+  comments TEXT,
+  timestamp INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS replays (
+  id TEXT PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  timestamp INTEGER NOT NULL,
+  release TEXT,
+  environment TEXT,
+  kind TEXT NOT NULL,
+  stored_path TEXT,
+  payload TEXT
+);
+CREATE INDEX IF NOT EXISTS replays_project ON replays(project_id);
+CREATE TABLE IF NOT EXISTS client_reports (
+  id TEXT PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  timestamp INTEGER NOT NULL,
+  discarded TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS client_reports_project ON client_reports(project_id);
 `);
 
 // Colunas adicionadas depois do schema inicial — idempotente em DBs existentes
@@ -55,6 +105,7 @@ for (const stmt of [
   "ALTER TABLE events ADD COLUMN environment TEXT",
   "ALTER TABLE issues ADD COLUMN release TEXT",
   "ALTER TABLE events ADD COLUMN release TEXT",
+  "ALTER TABLE projects ADD COLUMN allowed_domains TEXT",
 ]) {
   try {
     sqlite.exec(stmt);

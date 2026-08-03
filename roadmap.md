@@ -8,33 +8,33 @@
 
 ## Estado atual (snapshot)
 
-| Área | Status |
-|---|---|
-| Ingestão de envelopes (`/api/:id/envelope/`) + store legado | ✅ |
-| Grouping por fingerprint (tipo + frames in-app) | ✅ |
-| Issues: resolved/ignored, environment, release, counts | ✅ |
-| Rate limiting com `X-Sentry-Rate-Limits` | ✅ |
-| Dashboard (stats, gráfico 14d, recentes) | ✅ |
-| Busca/filtros de issues (título, nível, ambiente, release) | ✅ |
-| Detalhe: stacktrace, breadcrumbs, tags, contexts, JSON raw, frequência | ✅ |
-| Projetos: CRUD, DSN, rotate key, settings | ✅ |
-| Auth single-user com sessão | ✅ |
-| Deploy: 1 container, SQLite, retenção | ✅ |
+| Área                                                                   | Status |
+| ---------------------------------------------------------------------- | ------ |
+| Ingestão de envelopes (`/api/:id/envelope/`) + store legado            | ✅     |
+| Grouping por fingerprint (tipo + frames in-app)                        | ✅     |
+| Issues: resolved/ignored, environment, release, counts                 | ✅     |
+| Rate limiting com `X-Sentry-Rate-Limits`                               | ✅     |
+| Dashboard (stats, gráfico 14d, recentes)                               | ✅     |
+| Busca/filtros de issues (título, nível, ambiente, release)             | ✅     |
+| Detalhe: stacktrace, breadcrumbs, tags, contexts, JSON raw, frequência | ✅     |
+| Projetos: CRUD, DSN, rotate key, settings                              | ✅     |
+| Auth single-user com sessão                                            | ✅     |
+| Deploy: 1 container, SQLite, retenção                                  | ✅     |
 
 ---
 
-## Fase 1 — Protocolo de ingestão (base sólida) 🔜
+## Fase 1 — Protocolo de ingestão (base sólida) ✅
 
 Deixar a ingestão 100% compatível com o protocolo do Sentry.
 
-- [ ] **Envelope completo** — processar items de `attachment`, `sessions`, `replay`, `user-report` (hoje ignorados); armazenar anexos em disco/SQLite
-- [ ] **Tunnel endpoint** (`/api/tunnel`) — SDKs de browser que enviam pelo proxy do Sentry para driblar ad-blockers
-- [ ] **`store/` legado completo** — aceitar gzip/deflate e campos que só vêm por esse caminho
-- [ ] **Categoria de rate limit por item** — responder com retry por categoria (`60000:error:project;60000:attachment:project`)
-- [ ] **CORS/Origin check** — permitir lista de domínios por projeto (campo "Allowed Domains" do Sentry)
-- [ ] **Validação de payload com schema** — rejeitar eventos malformados com erro descritivo (hoje: 400 genérico)
-- [ ] **Client Reports / SDK feedback** — endpoint de stats de envio dos SDKs
-- [ ] **`sentry-trace`/`baggage`** — parsing e persistência (pré-requisito de tracing)
+- [x] **Envelope completo** — processar items de `attachment`, `sessions`, `replay`, `user-report`; anexos/recordings vão para disco (`DATA_DIR`), metadados no SQLite
+- [x] **Tunnel endpoint** (`/api/tunnel`) — SDKs de browser enviam pelo proxy do Sentry para driblar ad-blockers (validado com `@sentry/browser` de verdade)
+- [x] **`store/` legado completo** — gzip e deflate (raw)
+- [x] **Categoria de rate limit por item** — buckets separados por categoria, header `X-Sentry-Rate-Limits` com retry por categoria
+- [x] **CORS/Origin check** — `allowed_domains` por projeto (suporta `*.exemplo.com`), configurável no dashboard
+- [x] **Validação de payload com schema** — evento malformado rejeitado com mensagem descritiva (`400 {detail: "event has no message..."}`)
+- [x] **Client Reports / SDK feedback** — item `client_report` do envelope persistido em tabela para métricas futuras
+- [x] **`sentry-trace`/`baggage`** — parsing do header e injeção no `contexts.trace` do evento (pré-requisito da fase 4; validado: SDK browser envia trace real)
 
 ## Fase 2 — Issues & grouping (o coração do produto) 🔜
 
@@ -125,14 +125,14 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 
 ## Não-objetivos (decisões conscientes)
 
-| Feature do Sentry | Por quê não |
-|---|---|
-| Kafka / ClickHouse / workers | Proposta central: micro VPS, 1 processo, zero infra |
-| Horizontal scaling / multi-region | Não é o público-alvo; se precisar, migra-se a camada de storage |
-| Replay por longos períodos | Volume inviável em SQLite — expiração de 7d, igual em natureza mas menor escopo |
-| ML/grouping inteligente (Sentry usa aprendizado p/ sugerir grupos) | Fora de proporção; fingerprint + regras cobrem o caso real |
-| Quotas/planos de faturamento | Sem SaaS, sem billing |
-| Integrações de terceiros completas (Jira, Linear, Slack app) | Vem via webhooks genéricos |
+| Feature do Sentry                                                  | Por quê não                                                                     |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Kafka / ClickHouse / workers                                       | Proposta central: micro VPS, 1 processo, zero infra                             |
+| Horizontal scaling / multi-region                                  | Não é o público-alvo; se precisar, migra-se a camada de storage                 |
+| Replay por longos períodos                                         | Volume inviável em SQLite — expiração de 7d, igual em natureza mas menor escopo |
+| ML/grouping inteligente (Sentry usa aprendizado p/ sugerir grupos) | Fora de proporção; fingerprint + regras cobrem o caso real                      |
+| Quotas/planos de faturamento                                       | Sem SaaS, sem billing                                                           |
+| Integrações de terceiros completas (Jira, Linear, Slack app)       | Vem via webhooks genéricos                                                      |
 
 ---
 

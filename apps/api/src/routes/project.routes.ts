@@ -21,7 +21,10 @@ export const projectRoutes = new Elysia({ prefix: "/v1" })
   .get("/projects/:id/environments", ({ params }) => project.environments({ params }))
   .get("/projects/:id/releases", ({ params }) => project.releases({ params }))
   .patch("/projects/:id", ({ params, body, set }) => project.update({ params, body, set }), {
-    body: t.Object({ name: t.String({ minLength: 1, maxLength: 120 }) }),
+    body: t.Object({
+      name: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
+      allowedDomains: t.Optional(t.Array(t.String())),
+    }),
   })
   .post("/projects/:id/rotate-key", ({ params, set }) => project.rotateKey({ params, set }))
   .delete("/projects/:id", ({ params, set }) => project.remove({ params, set }));

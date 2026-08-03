@@ -71,6 +71,7 @@ export interface Project {
   id: number;
   name: string;
   publicKey: string;
+  allowedDomains: string | null;
   createdAt: number;
 }
 

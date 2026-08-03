@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type ProjectWithDsn = Project & { dsn: string };
+type ProjectWithDsn = Omit<Project, "allowedDomains"> & { dsn: string; allowedDomains: string[] };
 
 const LEVELS = ["fatal", "error", "warning", "info", "debug"];
 const NEW_WINDOW_MS = 24 * 3600 * 1000;
@@ -62,6 +62,7 @@ function ProjectSettings({
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [name, setName] = useState(project.name);
+  const [domains, setDomains] = useState((project.allowedDomains ?? []).join(", "));
   const [open, setOpen] = useState(false);
 
   const rename = useMutation({
@@ -74,6 +75,17 @@ function ProjectSettings({
       qc.invalidateQueries({ queryKey: ["projects"] });
       qc.invalidateQueries({ queryKey: ["project", String(project.id)] });
       onChanged();
+    },
+  });
+
+  const saveDomains = useMutation({
+    mutationFn: (newDomains: string[]) =>
+      api(`/v1/projects/${project.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ allowedDomains: newDomains }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project", String(project.id)] });
     },
   });
 
@@ -127,6 +139,36 @@ function ProjectSettings({
               </Button>
             </div>
           </form>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label htmlFor="domains">Domínios permitidos (CORS)</Label>
+            <Input
+              id="domains"
+              value={domains}
+              onChange={(e) => setDomains(e.target.value)}
+              placeholder="example.com, app.example.com"
+            />
+            <p className="text-xs text-muted-foreground">
+              Separados por vírgula. Vazio = qualquer origem. Suporta <code>*.example.com</code>.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={saveDomains.isPending}
+              onClick={() =>
+                saveDomains.mutate(
+                  domains
+                    .split(",")
+                    .map((d) => d.trim())
+                    .filter(Boolean),
+                )
+              }
+            >
+              Salvar domínios
+            </Button>
+          </div>
 
           <Separator />
 

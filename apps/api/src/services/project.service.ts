@@ -15,6 +15,21 @@ export function getProject(id: number): Project | undefined {
   return db.select().from(projects).where(eq(projects.id, id)).get();
 }
 
+export function getProjectByKey(publicKey: string): Project | undefined {
+  return db.select().from(projects).where(eq(projects.publicKey, publicKey)).get();
+}
+
+/** Domínios permitidos para CORS (JSON array armazenado) — null/vazio = todos. */
+export function getAllowedDomains(project: Project): string[] {
+  if (!project.allowedDomains) return [];
+  try {
+    const parsed = JSON.parse(project.allowedDomains);
+    return Array.isArray(parsed) ? parsed.filter((d): d is string => typeof d === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function createProject(name: string): { id: number; name: string; publicKey: string } {
   const publicKey = crypto.randomUUID().replace(/-/g, "");
   const row = db
@@ -27,6 +42,13 @@ export function createProject(name: string): { id: number; name: string; publicK
 
 export function renameProject(id: number, name: string) {
   db.update(projects).set({ name }).where(eq(projects.id, id)).run();
+}
+
+export function updateAllowedDomains(id: number, domains: string[]) {
+  db.update(projects)
+    .set({ allowedDomains: JSON.stringify(domains) })
+    .where(eq(projects.id, id))
+    .run();
 }
 
 export function rotateProjectKey(id: number): string {

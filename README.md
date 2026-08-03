@@ -102,14 +102,25 @@ Sentry.init({ dsn: "https://<public_key>@errors.seudominio.com/1" });
 
 ## Config
 
-| Env                  | Default           | Descrição                                 |
-| -------------------- | ----------------- | ----------------------------------------- |
-| `PORT`               | `3000`            | Porta da API                              |
-| `ADMIN_USER`         | `admin`           | Usuário do dashboard                      |
-| `ADMIN_PASSWORD`     | gerada (ver logs) | Senha do dashboard                        |
-| `DATABASE_PATH`      | `sentrylike.db`   | Caminho do SQLite (`/data/...` no Docker) |
-| `RETENTION_DAYS`     | `30`              | Apaga eventos mais velhos que N dias      |
-| `MAX_ENVELOPE_BYTES` | `10485760`        | Tamanho máx. de um envelope (10MB)        |
+| Env                    | Default           | Descrição                                 |
+| ---------------------- | ----------------- | ----------------------------------------- |
+| `PORT`                 | `3000`            | Porta da API                              |
+| `ADMIN_USER`           | `admin`           | Usuário do dashboard                      |
+| `ADMIN_PASSWORD`       | gerada (ver logs) | Senha do dashboard                        |
+| `DATABASE_PATH`        | `sentrylike.db`   | Caminho do SQLite (`/data/...` no Docker) |
+| `DATA_DIR`             | `./blobs`         | Anexos e replays em disco (junto do DB)   |
+| `RETENTION_DAYS`       | `30`              | Apaga eventos mais velhos que N dias      |
+| `MAX_ENVELOPE_BYTES`   | `10485760`        | Tamanho máx. de um envelope (10MB)        |
+| `MAX_ATTACHMENT_BYTES` | `5242880`         | Tamanho máx. de um anexo (5MB)            |
+| `RATE_LIMIT_PER_MIN`   | `600`             | Eventos/min/projeto por categoria         |
+
+### Ingestão compatível com o protocolo Sentry
+
+- `POST /api/:id/envelope/` — SDKs modernos (event, attachment, session, user_report, replay, client_report)
+- `POST /api/:id/store/` — SDKs legados (com gzip/deflate)
+- `POST /api/tunnel` — SDKs de browser via proxy (anti ad-blocker); o DSN vai no header do envelope
+- Rate limiting por categoria com `X-Sentry-Rate-Limits` (SDKs respeitam e pausam o envio)
+- `sentry-trace` capturado do header e persistido no `contexts.trace` do evento
 
 ## Limitações conhecidas / roadmap
 

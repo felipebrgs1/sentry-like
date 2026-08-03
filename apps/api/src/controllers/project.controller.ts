@@ -19,14 +19,18 @@ export function create({ body }: { body: { name: string } }) {
   return projectService.createProject(body.name);
 }
 
-/** GET /v1/projects/:id — com DSN */
+/** GET /v1/projects/:id — com DSN e domínios permitidos */
 export function get({ params, request, set }: Pick<HandlerContext, "params" | "request" | "set">) {
   const p = projectService.getProject(Number(params.id));
   if (!p) {
     set.status = 404;
     return { error: "not found" };
   }
-  return { ...p, dsn: projectService.buildDsn(new URL(request.url).origin, p.publicKey, p.id) };
+  return {
+    ...p,
+    dsn: projectService.buildDsn(new URL(request.url).origin, p.publicKey, p.id),
+    allowedDomains: projectService.getAllowedDomains(p),
+  };
 }
 
 /** GET /v1/projects/:id/issues — com filtros */
@@ -50,17 +54,28 @@ export function releases({ params }: Pick<HandlerContext, "params">) {
   return projectService.projectReleases(Number(params.id));
 }
 
-/** PATCH /v1/projects/:id */
+/** PATCH /v1/projects/:id — renomear e/ou atualizar domínios permitidos */
 export function update({
   params,
   body,
   set,
-}: Pick<HandlerContext, "params" | "body" | "set"> & { body: { name: string } }) {
-  if (!projectService.getProject(Number(params.id))) {
+}: Pick<HandlerContext, "params" | "body" | "set"> & {
+  body: { name?: string; allowedDomains?: string[] };
+}) {
+  const project = projectService.getProject(Number(params.id));
+  if (!project) {
     set.status = 404;
     return { error: "not found" };
   }
-  projectService.renameProject(Number(params.id), body.name);
+  if (body.name !== undefined && body.name.trim()) {
+    projectService.renameProject(project.id, body.name.trim());
+  }
+  if (body.allowedDomains !== undefined) {
+    projectService.updateAllowedDomains(
+      project.id,
+      body.allowedDomains.map((d) => d.trim()).filter(Boolean),
+    );
+  }
   return { ok: true };
 }
 
