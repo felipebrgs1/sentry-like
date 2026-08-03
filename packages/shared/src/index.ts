@@ -282,3 +282,43 @@ export interface ReleasePerformance {
   errorRate: number;
   lastSeen: number;
 }
+
+// ------------------------------------------------------------------
+// Alertas (Fase 5)
+// ------------------------------------------------------------------
+
+export type AlertRuleType =
+  | "new_issue"
+  | "regression"
+  | "frequency_spike"
+  | "unresolved_age"
+  | "rate_limit"
+  | "daily_digest";
+
+export type WebhookType = "generic" | "slack" | "discord";
+
+export interface AlertRule {
+  id: number;
+  projectId: number;
+  name: string;
+  type: AlertRuleType;
+  /** config específica por tipo (threshold, window_minutes, days…) */
+  config: Record<string, unknown>;
+  webhookType: WebhookType;
+  webhookUrl: string;
+  enabled: number; // 0 | 1
+  lastFiredAt: number | null;
+  createdAt: number;
+}
+
+export interface AlertLog {
+  id: number;
+  ruleId: number | null;
+  projectId: number;
+  issueId: number | null;
+  type: string;
+  title: string;
+  sentAt: number;
+  status: "ok" | "error";
+  response: string | null;
+}

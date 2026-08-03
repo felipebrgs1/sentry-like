@@ -180,6 +180,54 @@ export const spans = sqliteTable(
   (t) => [index("spans_transaction").on(t.transactionId)],
 );
 
+// Fase 5 — Alertas: regras + histórico de disparos
+export const alertRules = sqliteTable("alert_rules", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  projectId: integer("project_id")
+    .notNull()
+    .references(() => projects.id),
+  name: text("name").notNull(),
+  type: text("type", {
+    enum: [
+      "new_issue",
+      "regression",
+      "frequency_spike",
+      "unresolved_age",
+      "rate_limit",
+      "daily_digest",
+    ],
+  }).notNull(),
+  config: text("config").notNull().default("{}"), // JSON por tipo
+  webhookType: text("webhook_type", { enum: ["generic", "slack", "discord"] })
+    .notNull()
+    .default("generic"),
+  webhookUrl: text("webhook_url").notNull(),
+  enabled: integer("enabled").notNull().default(1),
+  lastFiredAt: integer("last_fired_at"),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const alertLogs = sqliteTable(
+  "alert_logs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    ruleId: integer("rule_id").references(() => alertRules.id),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id),
+    issueId: integer("issue_id"),
+    type: text("type").notNull(),
+    title: text("title").notNull(),
+    sentAt: integer("sent_at").notNull(),
+    status: text("status").notNull().default("ok"), // ok | error
+    response: text("response"),
+  },
+  (t) => [
+    index("alert_logs_project").on(t.projectId, t.sentAt),
+    index("alert_logs_rule_issue").on(t.ruleId, t.issueId),
+  ],
+);
+
 export const events = sqliteTable(
   "events",
   {

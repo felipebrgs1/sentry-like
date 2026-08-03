@@ -202,7 +202,12 @@ export function PerformancePage() {
               value="performance"
               onValueChange={(v) =>
                 navigate({
-                  to: v === "issues" ? "/projects/$projectId" : "/projects/$projectId/performance",
+                  to:
+                    v === "issues"
+                      ? "/projects/$projectId"
+                      : v === "alerts"
+                        ? "/projects/$projectId/alerts"
+                        : "/projects/$projectId/performance",
                   params: { projectId },
                 })
               }
@@ -210,6 +215,7 @@ export function PerformancePage() {
               <TabsList>
                 <TabsTrigger value="issues">Issues</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
+                <TabsTrigger value="alerts">Alertas</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

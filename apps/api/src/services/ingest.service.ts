@@ -15,6 +15,7 @@ import {
 import { computeFingerprint } from "../lib/fingerprint";
 import { computePriority } from "../lib/priority";
 import { saveBlob } from "../lib/storage";
+import { fireIngestAlerts } from "./alert.service";
 import { MAX_ATTACHMENT_BYTES } from "../config";
 
 /** Sentry timestamps podem ser epoch seconds ou ISO string. Normaliza para ms. */
@@ -100,6 +101,19 @@ export async function storeEvent(projectId: number, event: SentryEvent): Promise
       .where(eq(issues.id, existing.id))
       .run();
     issueId = existing.id;
+    if (wasResolved) {
+      // Fase 5: regressão → alerta
+      try {
+        await fireIngestAlerts(projectId, "regression", {
+          id: existing.id,
+          title: existing.title || title,
+          level,
+          lastSeen: ts,
+        });
+      } catch {
+        // alerta não deve quebrar a ingestão
+      }
+    }
   } else {
     const row = await db
       .insert(issues)
@@ -121,6 +135,12 @@ export async function storeEvent(projectId: number, event: SentryEvent): Promise
       .returning({ id: issues.id })
       .get();
     issueId = row.id;
+    // Fase 5: issue nova → alerta
+    try {
+      await fireIngestAlerts(projectId, "new_issue", { id: row.id, title, level, lastSeen: ts });
+    } catch {
+      // alerta não deve quebrar a ingestão
+    }
   }
 
   await db

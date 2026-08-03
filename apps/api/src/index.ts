@@ -5,6 +5,7 @@ import { db, initBunDb } from "./db";
 import { projects } from "./db/schema";
 import { routes } from "./routes";
 import { runRetention } from "./lib/retention";
+import { runAlertChecks } from "./services/alert.service";
 import { adminPassword, ADMIN_USER, PASSWORD_WAS_GENERATED, PORT } from "./config";
 
 // Bootstrap do banco (bun:sqlite, VPS) antes de servir qualquer request
@@ -32,6 +33,11 @@ if (PASSWORD_WAS_GENERATED) {
 setInterval(() => {
   runRetention().catch((e) => console.error("[sentrylike] retention failed", e));
 }, 3600_000).unref();
+
+// Alertas periódicos (spike, unresolved_age, rate_limit, digest) — 1x a cada 5min
+setInterval(() => {
+  runAlertChecks().catch((e) => console.error("[sentrylike] alert check failed", e));
+}, 5 * 60_000).unref();
 
 // --- static dashboard (build de produção) ---
 const WEB_DIR = process.env.WEB_DIR ?? join(import.meta.dir, "../../web/dist");

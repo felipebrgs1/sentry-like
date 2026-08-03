@@ -132,7 +132,7 @@ function ProjectSettings({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
         title="Configurações do projeto"
         onClick={() => setOpen(true)}
@@ -144,7 +144,7 @@ function ProjectSettings({
           <SheetTitle>Configurações</SheetTitle>
           <SheetDescription>{project.name}</SheetDescription>
         </SheetHeader>
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 px-4 py-4">
           <form
             className="space-y-2"
             onSubmit={(e) => {
@@ -424,6 +424,7 @@ export function ProjectIssuesPage() {
               <TabsList>
                 <TabsTrigger value="issues">Issues</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
+                <TabsTrigger value="alerts">Alertas</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

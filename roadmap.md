@@ -16,6 +16,7 @@
 | Rate limiting com `X-Sentry-Rate-Limits`                               | ✅     |
 | Dashboard (stats, gráfico 14d, recentes, resumo de performance, top rotas) | ✅     |
 | Performance: página global + por projeto, waterfall, p50/p95/p99, web vitals | ✅     |
+| Alertas: regras (nova/regressão/spike/idade/rate/digest), webhook Slack/Discord, histórico | ✅ |
 | Busca/filtros de issues (título, nível, ambiente, release)             | ✅     |
 | Detalhe: stacktrace, breadcrumbs, tags, contexts, JSON raw, frequência | ✅     |
 | Fase 2 completa: fingerprint custom, ignore com janela, regressão, merge, lote, prioridade, search salva, cursor, unread, owner | ✅ |
@@ -70,12 +71,13 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 - [x] **Transações por release** — `release-performance` comparando deploys + filtro de release em tudo
 - [x] **Segmentação** — por rota (grouping por name), browser (`contexts.browser`), país (`user.geo.country_code`)
 
-## Fase 5 — Alertas & notificações 📋
+## Fase 5 — Alertas & notificações ✅
 
-- [ ] **Regras de alerta** — new issue, regression, spike de frequência, "issue ficou sem resolver X dias"
-- [ ] **Canais** — webhook genérico + Slack/Discord (formatos conhecidos), email
-- [ ] **Digest diário** — resumo de atividades do dia por email
-- [ ] **Rate alert** — alertar quando ingestão chegar perto do limite
+- [x] **Regras de alerta** — new issue, regression, spike de frequência, "issue ficou sem resolver X dias", perto do rate limit, digest diário
+- [x] **Canais** — webhook genérico + Slack + Discord (payloads formatados); email fica pendente de infra SMTP (Bun.email na VPS é possível depois)
+- [x] **Digest diário** — resumo das últimas 24h (novas issues, eventos, top issues) via webhook, cooldown 22h
+- [x] **Rate alert** — alertar quando ingestão chegar perto do limite (≥80% em 1min, 1x/hora)
+- [x] **Infra** — disparos de new_issue/regression na ingestão; pico/idade/rate/digest no check periódico (setInterval 5min na VPS, cron */5 no CF); histórico em `alert_logs` + página de Alertas com CRUD/testar/ligar-desligar
 
 ## Fase 6 — Sessões, crash-free & feedback de usuário 📋
 

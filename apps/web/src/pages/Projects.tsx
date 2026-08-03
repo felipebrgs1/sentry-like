@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Plus } from "lucide-react";
 import type { ProjectWithStats } from "@sentrylike/shared";
@@ -20,8 +20,10 @@ import { Badge } from "@/components/ui/badge";
 
 export function ProjectsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [copied, setCopied] = useState<number | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["projects"],
@@ -31,10 +33,19 @@ export function ProjectsPage() {
 
   const create = useMutation({
     mutationFn: (newName: string) =>
-      api("/v1/projects", { method: "POST", body: JSON.stringify({ name: newName }) }),
-    onSuccess: () => {
+      api<{ id: number }>("/v1/projects", {
+        method: "POST",
+        body: JSON.stringify({ name: newName }),
+      }),
+    onSuccess: (created) => {
       setName("");
+      setCreateError(null);
       qc.invalidateQueries({ queryKey: ["projects"] });
+      // feedback imediato: vai para a página do projeto criado
+      navigate({ to: "/projects/$projectId", params: { projectId: String(created.id) } });
+    },
+    onError: (e) => {
+      setCreateError(e instanceof Error ? e.message : "Falha ao criar o projeto");
     },
   });
 
@@ -58,6 +69,7 @@ export function ProjectsPage() {
             className="flex gap-2"
             onSubmit={(e) => {
               e.preventDefault();
+              setCreateError(null);
               if (name.trim()) create.mutate(name.trim());
             }}
           >
@@ -67,10 +79,15 @@ export function ProjectsPage() {
               placeholder="nome do projeto"
               className="w-56"
             />
-            <Button type="submit" disabled={create.isPending}>
+            <Button
+              type="submit"
+              disabled={create.isPending || !name.trim()}
+              title={!name.trim() ? "digite um nome para criar" : undefined}
+            >
               <Plus /> Criar
             </Button>
           </form>
+          {createError && <p className="self-center text-xs text-destructive">{createError}</p>}
         </div>
       </div>
 

@@ -160,6 +160,31 @@ const CREATE_STATEMENTS = [
     payload TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS spans_transaction ON spans(transaction_id)`,
+  `CREATE TABLE IF NOT EXISTS alert_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    config TEXT NOT NULL DEFAULT '{}',
+    webhook_type TEXT NOT NULL DEFAULT 'generic',
+    webhook_url TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    last_fired_at INTEGER,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS alert_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule_id INTEGER REFERENCES alert_rules(id),
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    issue_id INTEGER,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    sent_at INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ok',
+    response TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS alert_logs_project ON alert_logs(project_id, sent_at)`,
+  `CREATE INDEX IF NOT EXISTS alert_logs_rule_issue ON alert_logs(rule_id, issue_id)`,
 ];
 
 // colunas adicionadas depois do schema inicial — idempotente em DBs existentes

@@ -22,3 +22,6 @@ export function adminPassword(): string {
   return cachedPassword;
 }
 export const SESSION_TTL_MS = 7 * 24 * 3600 * 1000; // 7 dias
+
+// URL pública do dashboard — usada nos links dos alertas (VPS: env; CF: [vars])
+export const APP_URL = (process.env.APP_URL ?? "http://localhost:3001").replace(/\/$/, "");

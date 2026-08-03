@@ -5,6 +5,7 @@ import { db, initD1Db } from "./db";
 import { projects } from "./db/schema";
 import { routes } from "./routes";
 import { runRetention } from "./lib/retention";
+import { runAlertChecks } from "./services/alert.service";
 import { kvRateLimiter, setRateLimiter } from "./lib/ratelimit";
 import { r2BlobStore, setBlobStore } from "./lib/storage";
 
@@ -82,9 +83,10 @@ export default {
     return app.handle(request);
   },
 
-  /** Cron de retenção (mesma lógica do setInterval do Bun). */
+  /** Cron: retenção + alertas periódicos (mesma lógica dos setIntervals do Bun). */
   async scheduled(_event: unknown, env: Env): Promise<void> {
     await ensureReady(env);
+    await runAlertChecks();
     await runRetention();
   },
 };

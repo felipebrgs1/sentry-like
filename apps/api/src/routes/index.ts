@@ -5,6 +5,7 @@ import { statsRoutes } from "./stats.routes";
 import { projectRoutes } from "./project.routes";
 import { issueRoutes } from "./issue.routes";
 import { performanceRoutes } from "./performance.routes";
+import { alertRoutes } from "./alert.routes";
 
 /** Monta todas as rotas da API. */
 export const routes = new Elysia()
@@ -14,4 +15,5 @@ export const routes = new Elysia()
   .use(statsRoutes)
   .use(projectRoutes)
   .use(issueRoutes)
-  .use(performanceRoutes);
+  .use(performanceRoutes)
+  .use(alertRoutes);

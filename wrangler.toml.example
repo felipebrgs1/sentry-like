@@ -42,9 +42,9 @@ bucket_name = "sentrylike-blobs"
 binding = "RATE_LIMIT_KV"
 id = "SUBSTITUA_PELO_KV_NAMESPACE_ID"
 
-# Retenção de eventos (mesma lógica do setInterval do Bun) — 1x por dia
+# Cron: retenção (3h) + alertas periódicos (a cada 5min)
 [triggers]
-crons = ["0 3 * * *"]
+crons = ["0 3 * * *", "*/5 * * * *"]
 
 # Credenciais do dashboard. NÃO comitar senha — use `wrangler secret put ADMIN_PASSWORD`
 # ou `--var ADMIN_PASSWORD:...` no wrangler dev. Sem isso, a senha é gerada aleatória.
