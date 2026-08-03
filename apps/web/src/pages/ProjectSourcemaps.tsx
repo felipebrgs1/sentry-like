@@ -139,7 +139,9 @@ export function ProjectSourcemapsPage() {
                           ? "/projects/$projectId/alerts"
                           : v === "releases"
                             ? "/projects/$projectId/releases"
-                            : "/projects/$projectId/sourcemaps",
+                            : v === "replays"
+                              ? "/projects/$projectId/replays"
+                              : "/projects/$projectId/sourcemaps",
                   params: { projectId },
                 })
               }
@@ -150,6 +152,7 @@ export function ProjectSourcemapsPage() {
                 <TabsTrigger value="alerts">Alertas</TabsTrigger>
                 <TabsTrigger value="releases">Releases</TabsTrigger>
                 <TabsTrigger value="sourcemaps">Sourcemaps</TabsTrigger>
+                <TabsTrigger value="replays">Replays</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

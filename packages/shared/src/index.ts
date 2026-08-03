@@ -488,3 +488,50 @@ export interface ApiToken {
   lastUsedAt: number | null;
   createdAt: number;
 }
+
+// ------------------------------------------------------------------
+// Replays (Fase 9)
+// ------------------------------------------------------------------
+
+/** Evento rrweb (subset mínimo usado pelo player). */
+export interface RrwebEvent {
+  type: number;
+  timestamp: number;
+  data: Record<string, unknown>;
+  delay?: number;
+}
+
+/** Interação extraída dos eventos (clique/input) para a timeline do player. */
+export interface ReplayInteraction {
+  timestamp: number;
+  kind: "click" | "input" | "scroll" | "resize" | "nav";
+  x?: number;
+  y?: number;
+  target?: string;
+  value?: string;
+}
+
+export interface ReplaySummary {
+  id: string;
+  projectId: number;
+  timestamp: number;
+  durationMs: number;
+  release: string | null;
+  environment: string | null;
+  urls: string[];
+  errorIds: string[];
+  segmentCount: number;
+}
+
+export interface ReplaySegment {
+  segmentId: number;
+  events: RrwebEvent[];
+}
+
+export interface ReplayDetail extends ReplaySummary {
+  eventCount: number;
+  user: Record<string, unknown> | null;
+  segments: ReplaySegment[];
+  interactions: ReplayInteraction[];
+  viewport: { width: number; height: number };
+}

@@ -15,6 +15,8 @@ import { PerformancePage } from "./pages/Performance";
 import { PerformanceGlobalPage } from "./pages/PerformanceGlobal";
 import { ProjectAlertsPage } from "./pages/ProjectAlerts";
 import { ProjectSourcemapsPage } from "./pages/ProjectSourcemaps";
+import { ReplaysPage } from "./pages/ReplaysPage";
+import { ReplayDetailPage } from "./pages/ReplayDetailPage";
 import { ReleasesPage } from "./pages/Releases";
 import { SettingsPage } from "./pages/Settings";
 import { IssueDetailPage } from "./pages/IssueDetail";
@@ -95,6 +97,18 @@ const projectSourcemapsRoute = createRoute({
   component: ProjectSourcemapsPage,
 });
 
+const projectReplaysRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/projects/$projectId/replays",
+  component: ReplaysPage,
+});
+
+const replayDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/replays/$replayId",
+  component: ReplayDetailPage,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings",
@@ -118,8 +132,10 @@ const routeTree = rootRoute.addChildren([
     projectAlertsRoute,
     projectReleasesRoute,
     projectSourcemapsRoute,
+    projectReplaysRoute,
     settingsRoute,
     issueRoute,
+    replayDetailRoute,
   ]),
 ]);
 

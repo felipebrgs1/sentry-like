@@ -86,6 +86,7 @@ Regras:
 - `sentry-trace` header → injetar em `contexts.trace` (pré-requisito da fase 4).
 - Blobs (attachments/replays) → `lib/storage.ts` (`DATA_DIR`); metadados no SQLite.
 - **Sourcemaps (Fase 8)**: `POST /v1/projects/:id/sourcemaps` (dashboard) ou protocolo do `sentry-cli` em `/api/0/organizations/:org/releases/:version/files/` (auth por API token — `X-Auth-Token` ou Bearer; **NÃO** key de DSN). `chunk-upload` retorna 404 de propósito para o sentry-cli cair no upload individual. Simbolização acontece na LEITURA (`/v1/events/:id`) e no fingerprint da ingestão (quando a release tem sourcemaps).
+- **Replays (Fase 9)**: `replay_event` vira a linha de sessão (upsert em `replays` — o recording pode chegar antes); cada `replay_recording` vira um segmento em `replay_recordings` (idempotente por `(replay_id, segment_id)`, blob em disco). O player (`/replays/:id`) reconstitui o DOM dos eventos rrweb com sanitização — nada do SDK de terceiros é renderizado sem escape. Expiração em 7d no `runRetention`.
 
 ## 6. Frontend
 

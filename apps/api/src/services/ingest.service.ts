@@ -6,6 +6,7 @@ import {
   clientReports,
   events,
   issues,
+  replayRecordings,
   replays,
   sentrySessions,
   spans,
@@ -377,6 +378,7 @@ export async function storeReplay(
     timestamp?: number | string;
     release?: string;
     environment?: string;
+    segment_id?: number;
     segments?: unknown;
   };
   const id = parsed.replay_id ?? crypto.randomUUID().replace(/-/g, "");
@@ -387,26 +389,66 @@ export async function storeReplay(
         : Math.round(parsed.timestamp)
       : Date.now();
 
-  let storedPath: string | null = null;
-  let payloadJson: string | null = null;
-  if (kind === "replay_recording") {
-    storedPath = await saveBlob(projectId, "replays", id, `${id}.bin`, payload);
-  } else {
-    payloadJson = text;
+  if (kind === "replay_event") {
+    // metadados da sessão (urls/error_ids no payload) — upsert: o recording
+    // pode ter chegado antes, e o SDK reenvia o event em batidas.
+    await db
+      .insert(replays)
+      .values({
+        id,
+        projectId,
+        timestamp: ts,
+        release: parsed.release ?? null,
+        environment: parsed.environment ?? null,
+        kind,
+        storedPath: null,
+        payload: text,
+      })
+      .onConflictDoUpdate({
+        target: replays.id,
+        set: {
+          timestamp: ts,
+          release: parsed.release ?? null,
+          environment: parsed.environment ?? null,
+          payload: text,
+        },
+      })
+      .run();
+    return;
   }
 
-  db.insert(replays)
+  // replay_recording: cada item é um segmento com id incremental.
+  // Garante a linha "replays" (caso o recording chegue antes do event).
+  await db
+    .insert(replays)
     .values({
       id,
       projectId,
       timestamp: ts,
       release: parsed.release ?? null,
       environment: parsed.environment ?? null,
-      kind,
-      storedPath,
-      payload: payloadJson,
+      kind: "replay_event",
+      storedPath: null,
+      payload: null,
     })
     .onConflictDoNothing()
+    .run();
+
+  const segmentId = typeof parsed.segment_id === "number" ? parsed.segment_id : 0;
+  const storedPath = await saveBlob(projectId, "replays", id, `${id}.${segmentId}.bin`, payload);
+  await db
+    .insert(replayRecordings)
+    .values({
+      projectId,
+      replayId: id,
+      segmentId,
+      storedPath,
+      createdAt: Date.now(),
+    })
+    .onConflictDoUpdate({
+      target: [replayRecordings.replayId, replayRecordings.segmentId],
+      set: { storedPath, createdAt: Date.now() },
+    })
     .run();
 }
 

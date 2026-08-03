@@ -118,6 +118,16 @@ const CREATE_STATEMENTS = [
     payload TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS replays_project ON replays(project_id)`,
+  `CREATE TABLE IF NOT EXISTS replay_recordings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    replay_id TEXT NOT NULL,
+    segment_id INTEGER NOT NULL DEFAULT 0,
+    stored_path TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS replay_recordings_replay_segment ON replay_recordings(replay_id, segment_id)`,
+  `CREATE INDEX IF NOT EXISTS replay_recordings_project ON replay_recordings(project_id)`,
   `CREATE TABLE IF NOT EXISTS client_reports (
     id TEXT PRIMARY KEY,
     project_id INTEGER NOT NULL REFERENCES projects(id),

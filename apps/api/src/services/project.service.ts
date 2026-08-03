@@ -10,6 +10,7 @@ import {
   issues,
   projects,
   replays,
+  replayRecordings,
   savedSearches,
   sentrySessions,
   sourcemapFiles,
@@ -94,6 +95,15 @@ export async function deleteProject(id: number): Promise<boolean> {
   await db.delete(savedSearches).where(eq(savedSearches.projectId, id)).run();
   await db.delete(spans).where(eq(spans.projectId, id)).run(); // antes de transactions
   await db.delete(transactions).where(eq(transactions.projectId, id)).run();
+  // Fase 9: replay_recordings (referencia replay_id, não project_id via FK —
+  // apaga primeiro) + blobs em disco; depois a linha de replays
+  const recs = await db
+    .select()
+    .from(replayRecordings)
+    .where(eq(replayRecordings.projectId, id))
+    .all();
+  for (const r of recs) await deleteBlob(r.storedPath).catch(() => {});
+  await db.delete(replayRecordings).where(eq(replayRecordings.projectId, id)).run();
   await db.delete(replays).where(eq(replays.projectId, id)).run();
   await db.delete(clientReports).where(eq(clientReports.projectId, id)).run();
   await db.delete(attachments).where(eq(attachments.projectId, id)).run();

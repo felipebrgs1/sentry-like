@@ -27,6 +27,7 @@
 | Deploy: 1 container, SQLite, retenção                                  | ✅     |
 | Performance: transactions/spans, waterfall, p50/p95/p99, web vitals, release-perf | ✅ |
 | Sourcemaps: upload (sentry-cli + dashboard), simbolização, frames similares, contexto | ✅ |
+| Replays: sessões por projeto, player básico (DOM + interações), expiração 7d            | ✅ |
 
 ---
 
@@ -107,9 +108,9 @@ O item mais difícil do roadmap — resolvido com um parser de sourcemap v3 (VLQ
 
 ## Fase 9 — Replays & cobertura 🧪
 
-- [ ] **Session replay** — aceitar items `replay`, armazenar em disco, player básico (carregar em imagem o frame stream)
-- [ ] **Cobertura de código** — stats de cobertura por release (o Sentry faz com monitores)
-- [ ] **Diferencial**: Replay em SQLite é inviável para volumes grandes — decisão consciente de manter local + expirar em 7d
+- [x] **Session replay** — aceitar items `replay_event`/`replay_recording` (já na F1), segmentos no BlobStore (um por recording, com idempotência por `segment_id` e upsert que aceita recording antes do event), player básico: reconstrução do DOM a partir dos eventos rrweb (FullSnapshot + mutations de texto/atributo/nó), sanitização anti-XSS, timeline de interações (clique/input/scroll), slider temporal com play/pause, viewport escalado; páginas de listagem (`/projects/:id/replays`) e detalhe (`/replays/:id`)
+- [ ] **Cobertura de código** — stats de cobertura por release (o Sentry faz com monitores). 📋 planejado: exige pipeline de CI + agente de cobertura (c8/istanbul) e tem pouco valor num self-host sem CI configurada
+- [x] **Diferencial**: Replay em SQLite é inviável para volumes grandes — decisão consciente: segmentos em disco (BlobStore) + expiração em 7d (`REPLAY_RETENTION_DAYS`, retenção integrada ao `runRetention`)
 
 ## Fase 10 — Polimento UI/UX 📋
 
@@ -154,4 +155,5 @@ O item mais difícil do roadmap — resolvido com um parser de sourcemap v3 (VLQ
 2. **Fase 2 antes da 4** — ninguém liga pra performance se as issues estão bagunçadas.
 3. **Sourcemaps (F8) antes do replay (F9)** — sourcemaps valem mais quando o produto é usado em produção com bundlers; replay é o item mais pesado do roadmap.
 4. **Cada fase deve terminar deployável** — nada de quebrar o `docker compose up` no meio do caminho.
-5. **F9 (replay) é o próximo** — a ingestão de items `replay` e o armazenamento em disco já existem (F1); falta o player básico e a UI de listagem.
+5. **F9 (replay) concluído** — player básico + expiração 7d; cobertura de código ficou 📋 (depende de pipeline de CI, sem valor num self-host sem CI)
+6. **F10 (polimento UI/UX) é o próximo** — tema claro, onboarding com snippet de SDK, atalhos de teclado, responsivo, i18n, empty states

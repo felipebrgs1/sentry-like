@@ -161,6 +161,26 @@ export const replays = sqliteTable(
   (t) => [index("replays_project").on(t.projectId)],
 );
 
+// Fase 9 — segmentos binários de cada replay (um por replay_recording item).
+// O SDK envia chunks com segment_id incremental; o conteúdo vai para o BlobStore.
+export const replayRecordings = sqliteTable(
+  "replay_recordings",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id),
+    replayId: text("replay_id").notNull(),
+    segmentId: integer("segment_id").notNull().default(0),
+    storedPath: text("stored_path").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("replay_recordings_replay_segment").on(t.replayId, t.segmentId),
+    index("replay_recordings_project").on(t.projectId),
+  ],
+);
+
 export const clientReports = sqliteTable(
   "client_reports",
   {

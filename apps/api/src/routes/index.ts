@@ -9,6 +9,7 @@ import { alertRoutes } from "./alert.routes";
 import { releaseRoutes, deployWebhookRoute } from "./release.routes";
 import { sessionRoutes } from "./session.routes";
 import { sourcemapRoutes } from "./sourcemap.routes";
+import { replayRoutes } from "./replay.routes";
 
 /** Monta todas as rotas da API. */
 export const routes = new Elysia()
@@ -23,4 +24,5 @@ export const routes = new Elysia()
   .use(releaseRoutes)
   .use(deployWebhookRoute)
   .use(sessionRoutes)
-  .use(sourcemapRoutes);
+  .use(sourcemapRoutes)
+  .use(replayRoutes);

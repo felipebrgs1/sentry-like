@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 export const PORT = Number(process.env.PORT ?? 3000);
 export const DATABASE_PATH = process.env.DATABASE_PATH ?? "sentrylike.db";
 export const RETENTION_DAYS = Number(process.env.RETENTION_DAYS ?? 30);
+// replays expiram em 7d (diferencial F9: volume inviável para períodos longos)
+export const REPLAY_RETENTION_DAYS = Number(process.env.REPLAY_RETENTION_DAYS ?? 7);
 export const TOKEN_WAS_GENERATED = !process.env.ADMIN_TOKEN;
 export const MAX_ENVELOPE_BYTES = Number(process.env.MAX_ENVELOPE_BYTES ?? 10 * 1024 * 1024);
 // limite de eventos/min/projeto antes de responder 429 com X-Sentry-Rate-Limits
