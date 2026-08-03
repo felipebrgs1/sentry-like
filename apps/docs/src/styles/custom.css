@@ -1,12 +1,81 @@
-/* Acento violeta — alinhado ao tema do dashboard (dark-only accent violeta). */
+/* Tema do Starlight alinhado ao dashboard (F10: dark com accent violeta) —
+   mesmas cores do apps/web/src/index.css, mapeadas nas variáveis do Starlight. */
+
 :root[data-theme="dark"] {
-  --sl-color-accent-high: oklch(0.68 0.19 300);
-  --sl-color-accent: oklch(0.62 0.21 300);
-  --sl-color-accent-low: oklch(0.32 0.13 300);
+  /* fundo/cards — iguais ao dashboard */
+  --sl-color-bg: oklch(0.145 0 0);
+  --sl-color-bg-nav: oklch(0.145 0 0);
+  --sl-color-bg-sidebar: oklch(0.145 0 0);
+  --sl-color-bg-accent: oklch(0.205 0 0);
+  --sl-color-bg-inline-code: oklch(0.269 0 0);
+
+  /* texto */
+  --sl-color-white: oklch(0.985 0 0);
+  --sl-color-text: oklch(0.985 0 0);
+  --sl-color-text-accent: oklch(0.985 0 0);
+  --sl-color-gray-5: oklch(0.708 0 0);
+  --sl-color-gray-6: oklch(0.585 0 0);
+
+  /* accent = violet-500 (tailwind) */
+  --sl-color-accent: oklch(0.606 0.25 292.717);
+  --sl-color-accent-high: oklch(0.78 0.14 292);
+  --sl-color-accent-low: oklch(0.32 0.12 292);
+
+  /* bordas — branco 10% (igual --border do dashboard dark) */
+  --sl-color-hairline: oklch(1 0 0 / 10%);
+  --sl-color-hairline-light: oklch(1 0 0 / 14%);
+  --sl-color-hairline-shade: oklch(1 0 0 / 6%);
 }
 
 :root[data-theme="light"] {
-  --sl-color-accent-high: oklch(0.45 0.22 300);
-  --sl-color-accent: oklch(0.52 0.23 300);
-  --sl-color-accent-low: oklch(0.88 0.09 300);
+  --sl-color-bg: oklch(1 0 0);
+  --sl-color-bg-nav: oklch(1 0 0);
+  --sl-color-bg-sidebar: oklch(0.985 0 0);
+  --sl-color-bg-accent: oklch(0.97 0 0);
+  --sl-color-bg-inline-code: oklch(0.97 0 0);
+
+  --sl-color-white: oklch(0.145 0 0);
+  --sl-color-text: oklch(0.205 0 0);
+  --sl-color-text-accent: oklch(0.145 0 0);
+  --sl-color-gray-5: oklch(0.556 0 0);
+  --sl-color-gray-6: oklch(0.439 0 0);
+
+  /* accent = violet-600 no claro (melhor contraste em fundo branco) */
+  --sl-color-accent: oklch(0.541 0.281 293.009);
+  --sl-color-accent-high: oklch(0.45 0.25 293);
+  --sl-color-accent-low: oklch(0.9 0.08 293);
+
+  --sl-color-hairline: oklch(0.922 0 0);
+  --sl-color-hairline-light: oklch(0.9 0 0);
+  --sl-color-hairline-shade: oklch(0.95 0 0);
+}
+
+/* Textura simples no fundo: dot grid sutil + glow violeta fraco no topo. */
+body {
+  background-image:
+    radial-gradient(1100px 500px at 50% -8%, oklch(0.606 0.25 292.717 / 0.07), transparent 60%),
+    radial-gradient(oklch(0.606 0.25 292.717 / 0.05) 1px, transparent 1.5px);
+  background-size:
+    100% 100%,
+    26px 26px;
+  background-attachment: fixed;
+}
+
+:root[data-theme="light"] body {
+  background-image:
+    radial-gradient(1100px 500px at 50% -8%, oklch(0.606 0.25 292.717 / 0.05), transparent 60%),
+    radial-gradient(oklch(0.541 0.281 293.009 / 0.08) 1px, transparent 1.5px);
+  background-size:
+    100% 100%,
+    26px 26px;
+  background-attachment: fixed;
+}
+
+/* links com o accent do projeto */
+:root[data-theme="dark"] .sl-markdown-content a {
+  color: oklch(0.78 0.14 292);
+}
+
+:root[data-theme="light"] .sl-markdown-content a {
+  color: oklch(0.45 0.25 293);
 }
