@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { SentryEvent } from "@sentrylike/shared";
 
 /**
@@ -8,8 +7,10 @@ import type { SentryEvent } from "@sentrylike/shared";
  *
  * Se o SDK enviou `event.fingerprint` (array de strings), ele tem prioridade —
  * é o mecanismo oficial do Sentry para forçar agrupamento custom.
+ *
+ * Usa crypto.subtle (Web Crypto) — portável entre Bun e Cloudflare Workers.
  */
-export function computeFingerprint(event: SentryEvent): string {
+export async function computeFingerprint(event: SentryEvent): Promise<string> {
   if (event.fingerprint?.length) {
     return sha256(`fingerprint:${event.fingerprint.join("\u0000")}`);
   }
@@ -30,6 +31,11 @@ export function computeFingerprint(event: SentryEvent): string {
   return sha256(`message:${msg}`);
 }
 
-function sha256(input: string): string {
-  return createHash("sha256").update(input).digest("hex").slice(0, 32);
+async function sha256(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 32);
 }

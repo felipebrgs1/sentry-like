@@ -15,5 +15,10 @@ export const MAX_ATTACHMENT_BYTES = Number(process.env.MAX_ATTACHMENT_BYTES ?? 5
 // Dashboard user (single-user mode)
 export const ADMIN_USER = process.env.ADMIN_USER?.trim() || "admin";
 export const PASSWORD_WAS_GENERATED = !process.env.ADMIN_PASSWORD?.trim();
-export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD?.trim() || crypto.randomUUID();
+// lazy + memoized: crypto.randomUUID é proibido em escopo global no Worker (só dentro de handler)
+let cachedPassword: string | null = null;
+export function adminPassword(): string {
+  cachedPassword ??= process.env.ADMIN_PASSWORD?.trim() || crypto.randomUUID();
+  return cachedPassword;
+}
 export const SESSION_TTL_MS = 7 * 24 * 3600 * 1000; // 7 dias

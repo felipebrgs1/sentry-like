@@ -62,8 +62,11 @@ function perfConds(projectId: number, f: PerfFilters) {
 // ------------------------------------------------------------------
 
 /** Resumo agregado por nome de transaction (p50/p95/p99, erro, throughput). */
-export function transactionSummaries(projectId: number, f: PerfFilters): TransactionSummary[] {
-  const rows = db
+export async function transactionSummaries(
+  projectId: number,
+  f: PerfFilters,
+): Promise<TransactionSummary[]> {
+  const rows = await db
     .select({
       name: transactions.name,
       timestamp: transactions.timestamp,
@@ -114,24 +117,28 @@ export function transactionSummaries(projectId: number, f: PerfFilters): Transac
 }
 
 /** Transactions recentes (para a listagem do detalhe). */
-export function recentTransactions(projectId: number, f: PerfFilters, limit = 100): Transaction[] {
-  return db
+export async function recentTransactions(
+  projectId: number,
+  f: PerfFilters,
+  limit = 100,
+): Promise<Transaction[]> {
+  const rows = await db
     .select()
     .from(transactions)
     .where(and(...perfConds(projectId, f)))
     .orderBy(desc(transactions.timestamp))
     .limit(limit)
-    .all()
-    .map(rowToTransaction);
+    .all();
+  return rows.map(rowToTransaction);
 }
 
 /** Série diária (count + latência média) de uma transaction. */
-export function transactionSeries(
+export async function transactionSeries(
   projectId: number,
   name: string,
   f: PerfFilters,
   days = 14,
-): DayStat[] {
+): Promise<DayStat[]> {
   const now = Date.now();
   const since = now - days * 24 * 3600_000;
   const conds = [
@@ -142,7 +149,7 @@ export function transactionSeries(
   if (f.release) conds.push(eq(transactions.release, f.release));
   if (f.env) conds.push(eq(transactions.environment, f.env));
 
-  const rows = db
+  const rows = await db
     .select({
       date: sql<string>`date(timestamp / 1000, 'unixepoch')`,
       count: sql<number>`count(*)`,
@@ -167,10 +174,10 @@ export function transactionSeries(
 }
 
 /** Detalhe de uma transaction + spans para o waterfall. */
-export function getTransaction(id: string): TransactionDetail | undefined {
-  const row = db.select().from(transactions).where(eq(transactions.id, id)).get();
+export async function getTransaction(id: string): Promise<TransactionDetail | undefined> {
+  const row = await db.select().from(transactions).where(eq(transactions.id, id)).get();
   if (!row) return undefined;
-  const spanRows = db
+  const spanRows = await db
     .select()
     .from(spans)
     .where(eq(spans.transactionId, id))
@@ -196,16 +203,11 @@ export function getTransaction(id: string): TransactionDetail | undefined {
 // ------------------------------------------------------------------
 
 /** Resumo global: rotas de todos os projetos (janela de 7 dias). */
-export function globalSummaries(days = 7): TransactionSummary[] {
+export async function globalSummaries(days = 7): Promise<TransactionSummary[]> {
   const since = Date.now() - days * 24 * 3600_000;
-  const projectNames = new Map(
-    db
-      .select()
-      .from(projects)
-      .all()
-      .map((p) => [p.id, p.name]),
-  );
-  const rows = db
+  const projectRows = await db.select().from(projects).all();
+  const projectNames = new Map(projectRows.map((p) => [p.id, p.name]));
+  const rows = await db
     .select({
       projectId: transactions.projectId,
       name: transactions.name,
@@ -264,9 +266,9 @@ export function globalSummaries(days = 7): TransactionSummary[] {
 const VITAL_KEYS = ["lcp", "fcp", "cls", "ttfb", "inp", "fp"] as const;
 
 /** Web vitals agregados (p50/p75/p95) das transactions que trazem measurements. */
-export function webVitals(projectId: number, f: PerfFilters): VitalsMap {
+export async function webVitals(projectId: number, f: PerfFilters): Promise<VitalsMap> {
   const conds = [...perfConds(projectId, f), isNotNull(transactions.measurements)];
-  const rows = db
+  const rows = await db
     .select({ measurements: transactions.measurements })
     .from(transactions)
     .where(and(...conds))
@@ -306,8 +308,11 @@ export function webVitals(projectId: number, f: PerfFilters): VitalsMap {
 }
 
 /** Comparativo de performance por release. */
-export function releasePerformance(projectId: number, f: PerfFilters): ReleasePerformance[] {
-  const rows = db
+export async function releasePerformance(
+  projectId: number,
+  f: PerfFilters,
+): Promise<ReleasePerformance[]> {
+  const rows = await db
     .select({
       release: transactions.release,
       timestamp: transactions.timestamp,

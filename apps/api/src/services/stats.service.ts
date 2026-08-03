@@ -5,13 +5,15 @@ import { events, issues, transactions } from "../db/schema";
 import { fillDays } from "../lib/timeseries";
 import { listProjects, projectEventsCountSince, projectOpenIssueCount } from "./project.service";
 
-function countEvents(cond: any) {
+async function countEvents(cond: any) {
   return (
-    db
-      .select({ c: sql<number>`count(*)` })
-      .from(events)
-      .where(cond)
-      .get()?.c ?? 0
+    (
+      await db
+        .select({ c: sql<number>`count(*)` })
+        .from(events)
+        .where(cond)
+        .get()
+    )?.c ?? 0
   );
 }
 
@@ -21,22 +23,24 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, idx)];
 }
 
-export function overview(): OverviewStats {
+export async function overview(): Promise<OverviewStats> {
   const now = Date.now();
   const d24 = now - 24 * 3600 * 1000;
   const d7 = now - 7 * 24 * 3600 * 1000;
   const d14 = now - 14 * 24 * 3600 * 1000;
 
   const openIssues =
-    db
-      .select({ c: sql<number>`count(*)` })
-      .from(issues)
-      .where(
-        sql`(status = 'unresolved' OR (status = 'ignored' AND ignored_until IS NOT NULL AND ignored_until < ${now})) AND merged_into IS NULL`,
-      )
-      .get()?.c ?? 0;
+    (
+      await db
+        .select({ c: sql<number>`count(*)` })
+        .from(issues)
+        .where(
+          sql`(status = 'unresolved' OR (status = 'ignored' AND ignored_until IS NOT NULL AND ignored_until < ${now})) AND merged_into IS NULL`,
+        )
+        .get()
+    )?.c ?? 0;
 
-  const perDay = db
+  const perDay = await db
     .select({
       day: sql<string>`date(timestamp / 1000, 'unixepoch')`,
       count: sql<number>`count(*)`,
@@ -48,15 +52,19 @@ export function overview(): OverviewStats {
 
   const eventsPerDay = fillDays(perDay, now, 14);
 
-  const projects = listProjects().map((p) => ({
-    id: p.id,
-    name: p.name,
-    openIssues: projectOpenIssueCount(p.id),
-    events24h: projectEventsCountSince(p.id, d24),
-  }));
+  const projects = await listProjects();
+  const projectStats = [];
+  for (const p of projects) {
+    projectStats.push({
+      id: p.id,
+      name: p.name,
+      openIssues: await projectOpenIssueCount(p.id),
+      events24h: await projectEventsCountSince(p.id, d24),
+    });
+  }
 
   // Performance (Fase 4): transações das últimas 24h + rotas mais lentas
-  const txRows = db
+  const txRows = await db
     .select({
       projectId: transactions.projectId,
       name: transactions.name,
@@ -107,10 +115,10 @@ export function overview(): OverviewStats {
 
   return {
     openIssues,
-    events24h: countEvents(gt(events.timestamp, d24)),
-    events7d: countEvents(gt(events.timestamp, d7)),
+    events24h: await countEvents(gt(events.timestamp, d24)),
+    events7d: await countEvents(gt(events.timestamp, d7)),
     eventsPerDay,
-    projects,
+    projects: projectStats,
     transactions24h: txRows.length,
     txAvg24h: txDurations.length
       ? Math.round(txDurations.reduce((a, b) => a + b, 0) / txDurations.length)

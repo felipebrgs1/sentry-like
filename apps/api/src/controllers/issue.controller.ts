@@ -5,13 +5,13 @@ import * as issueService from "../services/issue.service";
 const VALID_STATUSES: IssueStatus[] = ["unresolved", "resolved", "ignored"];
 
 /** GET /v1/issues — recentes (todos os projetos) */
-export function recent({ query }: Pick<HandlerContext, "query">) {
+export async function recent({ query }: Pick<HandlerContext, "query">) {
   return issueService.recentIssues(query?.status, Math.min(Number(query?.limit ?? 10), 50));
 }
 
 /** GET /v1/issues/:id */
-export function get({ params, set }: Pick<HandlerContext, "params" | "set">) {
-  const issue = issueService.getIssue(Number(params.id));
+export async function get({ params, set }: Pick<HandlerContext, "params" | "set">) {
+  const issue = await issueService.getIssue(Number(params.id));
   if (!issue) {
     set.status = 404;
     return { error: "not found" };
@@ -20,13 +20,13 @@ export function get({ params, set }: Pick<HandlerContext, "params" | "set">) {
 }
 
 /** GET /v1/issues/:id/events */
-export function events({ params }: Pick<HandlerContext, "params">) {
+export async function events({ params }: Pick<HandlerContext, "params">) {
   return issueService.listIssueEvents(Number(params.id));
 }
 
 /** GET /v1/events/:id — evento completo com payload parseado */
-export function eventDetail({ params, set }: Pick<HandlerContext, "params" | "set">) {
-  const row = issueService.getEvent(params.id);
+export async function eventDetail({ params, set }: Pick<HandlerContext, "params" | "set">) {
+  const row = await issueService.getEvent(params.id);
   if (!row) {
     set.status = 404;
     return { error: "not found" };
@@ -35,12 +35,12 @@ export function eventDetail({ params, set }: Pick<HandlerContext, "params" | "se
 }
 
 /** GET /v1/issues/:id/stats — eventos por dia (gráfico) */
-export function stats({ params }: Pick<HandlerContext, "params">) {
+export async function stats({ params }: Pick<HandlerContext, "params">) {
   return issueService.issueEventsPerDay(Number(params.id));
 }
 
 /** POST /v1/issues/:id/status — com suporte a "ignorar por X" (ignoreUntil ms) */
-export function updateStatus({
+export async function updateStatus({
   params,
   body,
   set,
@@ -54,35 +54,43 @@ export function updateStatus({
     b.status === "ignored" && typeof b.ignoreUntil === "number" && b.ignoreUntil > Date.now()
       ? b.ignoreUntil
       : null;
-  issueService.updateIssueStatus(Number(params.id), b.status as IssueStatus, ignoreUntil);
+  await issueService.updateIssueStatus(Number(params.id), b.status as IssueStatus, ignoreUntil);
   return { ok: true };
 }
 
 /** POST /v1/issues/:id/seen — marca como lida */
-export function seen({ params }: Pick<HandlerContext, "params">) {
-  issueService.setIssueSeen(Number(params.id));
+export async function seen({ params }: Pick<HandlerContext, "params">) {
+  await issueService.setIssueSeen(Number(params.id));
   return { ok: true };
 }
 
 /** POST /v1/issues/:id/assign — define owner (texto livre até multi-user) */
-export function assign({ params, body, set }: Pick<HandlerContext, "params" | "body" | "set">) {
+export async function assign({
+  params,
+  body,
+  set,
+}: Pick<HandlerContext, "params" | "body" | "set">) {
   const b = (body ?? {}) as { assignedTo?: string | null };
   if (b.assignedTo !== undefined && typeof b.assignedTo !== "string") {
     set.status = 400;
     return { error: "assignedTo must be a string" };
   }
-  issueService.assignIssue(Number(params.id), b.assignedTo ?? null);
+  await issueService.assignIssue(Number(params.id), b.assignedTo ?? null);
   return { ok: true };
 }
 
 /** POST /v1/issues/:id/merge — mescla `ids` na issue alvo */
-export function merge({ params, body, set }: Pick<HandlerContext, "params" | "body" | "set">) {
+export async function merge({
+  params,
+  body,
+  set,
+}: Pick<HandlerContext, "params" | "body" | "set">) {
   const ids = ((body as { ids?: unknown } | undefined)?.ids ?? []) as unknown[];
   if (!ids.every((i) => Number.isInteger(i))) {
     set.status = 400;
     return { error: "ids must be an array of integers" };
   }
-  if (!issueService.mergeIssues(Number(params.id), ids.map(Number))) {
+  if (!(await issueService.mergeIssues(Number(params.id), ids.map(Number)))) {
     set.status = 404;
     return { error: "nothing to merge" };
   }
@@ -90,8 +98,8 @@ export function merge({ params, body, set }: Pick<HandlerContext, "params" | "bo
 }
 
 /** POST /v1/issues/:id/unmerge — restaura issues mescladas */
-export function unmerge({ params, set }: Pick<HandlerContext, "params" | "set">) {
-  if (!issueService.unmergeIssues(Number(params.id))) {
+export async function unmerge({ params, set }: Pick<HandlerContext, "params" | "set">) {
+  if (!(await issueService.unmergeIssues(Number(params.id)))) {
     set.status = 404;
     return { error: "no merged issues" };
   }
@@ -99,7 +107,7 @@ export function unmerge({ params, set }: Pick<HandlerContext, "params" | "set">)
 }
 
 /** POST /v1/issues/batch — ações em lote */
-export function batch({ body, set }: Pick<HandlerContext, "body" | "set">) {
+export async function batch({ body, set }: Pick<HandlerContext, "body" | "set">) {
   const b = (body ?? {}) as {
     ids?: unknown;
     action?: string;
@@ -126,8 +134,8 @@ export function batch({ body, set }: Pick<HandlerContext, "body" | "set">) {
 }
 
 /** DELETE /v1/issues/:id */
-export function remove({ params, set }: Pick<HandlerContext, "params" | "set">) {
-  if (!issueService.deleteIssue(Number(params.id))) {
+export async function remove({ params, set }: Pick<HandlerContext, "params" | "set">) {
+  if (!(await issueService.deleteIssue(Number(params.id)))) {
     set.status = 404;
     return { error: "not found" };
   }

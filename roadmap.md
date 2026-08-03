@@ -123,6 +123,7 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 - [ ] **Observabilidade do próprio servidor** — métricas de ingestão/latência em `/health`
 - [ ] **Rate limit global por IP** — além do por projeto
 - [ ] **Postgres como opção** — driver alternativo do Drizzle, sem mudar o resto (SQLite continua default)
+- [x] **Cloudflare Workers como opção de deploy** — D1 (driver drizzle assíncrono), R2 (blobs), KV (rate limit), Static Assets (SPA), cron de retenção; VPS continua default via `bun run start`
 
 ---
 

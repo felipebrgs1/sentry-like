@@ -18,24 +18,68 @@ const CATEGORY_KEY: Record<RateCategory, string> = {
   user_report: "user_report",
 };
 
-const buckets = new Map<string, number[]>();
 const WINDOW_MS = 60_000;
 
 /**
- * Rate limit por projeto + categoria (janela deslizante em memória).
- * Quando estoura, o SDK respeita o header X-Sentry-Rate-Limits.
+ * RateLimiter: janela deslizante por projeto + categoria.
+ * VPS → memória (Map). Cloudflare → KV (isolates efêmeros não mantêm estado).
  */
-export function isRateLimited(projectId: number, category: RateCategory): boolean {
-  const now = Date.now();
-  const key = `${projectId}:${CATEGORY_KEY[category]}`;
-  const recent = (buckets.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (recent.length >= RATE_LIMIT_PER_MIN) {
-    buckets.set(key, recent);
-    return true;
+export interface RateLimiter {
+  isLimited(projectId: number, category: RateCategory): Promise<boolean>;
+}
+
+class MemoryRateLimiter implements RateLimiter {
+  private buckets = new Map<string, number[]>();
+
+  async isLimited(projectId: number, category: RateCategory): Promise<boolean> {
+    const now = Date.now();
+    const key = `${projectId}:${CATEGORY_KEY[category]}`;
+    const recent = (this.buckets.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
+    if (recent.length >= RATE_LIMIT_PER_MIN) {
+      this.buckets.set(key, recent);
+      return true;
+    }
+    recent.push(now);
+    this.buckets.set(key, recent);
+    return false;
   }
-  recent.push(now);
-  buckets.set(key, recent);
-  return false;
+}
+
+interface KV {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+}
+
+/** Bucket em KV (Cloudflare): contagem por minuto com expiração TTL. */
+class KVRateLimiter implements RateLimiter {
+  constructor(private readonly kv: KV) {}
+
+  async isLimited(projectId: number, category: RateCategory): Promise<boolean> {
+    const now = Date.now();
+    const windowStart = Math.floor(now / WINDOW_MS) * WINDOW_MS;
+    const key = `rl:${projectId}:${CATEGORY_KEY[category]}:${windowStart}`;
+    const current = Number((await this.kv.get(key)) ?? "0");
+    if (current >= RATE_LIMIT_PER_MIN) return true;
+    await this.kv.put(key, String(current + 1), { expirationTtl: 120 });
+    return false;
+  }
+}
+
+let limiter: RateLimiter = new MemoryRateLimiter();
+
+/** Troca o limiter (worker.ts da Cloudflare chama com o binding KV). */
+export function setRateLimiter(l: RateLimiter) {
+  limiter = l;
+}
+
+/** Cria um RateLimiter KV a partir do binding. */
+export function kvRateLimiter(binding: unknown): RateLimiter {
+  return new KVRateLimiter(binding as KV);
+}
+
+/** Rate limit por projeto + categoria (janela deslizante). */
+export function isRateLimited(projectId: number, category: RateCategory): Promise<boolean> {
+  return limiter.isLimited(projectId, category);
 }
 
 /**

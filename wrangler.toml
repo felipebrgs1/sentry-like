@@ -1,0 +1,48 @@
+# Cloudflare Workers — deploy alternativo (VPS continua o default via bun run start)
+# 1. bun run build                       (gera o front em apps/web/dist)
+# 2. wrangler d1 create sentrylike       → cole o database_id abaixo
+# 3. wrangler deploy                     (local: wrangler dev)
+
+name = "sentrylike"
+main = "apps/api/src/worker.ts"
+compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Front (SPA) servido como Static Assets; API fica nas rotas /api, /v1, /health
+[assets]
+directory = "./apps/web/dist"
+not_found_handling = "single-page-application"
+run_worker_first = true
+binding = "ASSETS"
+
+# driver bun:sqlite não existe em Worker — stub para o bundle passar
+[alias]
+"bun:sqlite" = "./apps/api/src/stubs/bun-sqlite.ts"
+"drizzle-orm/bun-sqlite" = "./apps/api/src/stubs/drizzle-bun.ts"
+
+# Banco D1 (SQLite da Cloudflare). Crie com: wrangler d1 create sentrylike
+[[d1_databases]]
+binding = "DB"
+database_name = "sentrylike"
+database_id = "SUBSTITUA_PELO_DATABASE_ID"
+
+# Blobs (attachments/replays) → R2. Opcional: se remover, vira disco (não existe no Worker).
+# Crie com: wrangler r2 bucket create sentrylike-blobs
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "sentrylike-blobs"
+
+# Rate limit compartilhado entre isolates → KV. Opcional: se remover, vira memória (reseta por isolate).
+# Crie com: wrangler kv namespace create RATE_LIMIT_KV
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "SUBSTITUA_PELO_KV_NAMESPACE_ID"
+
+# Retenção de eventos (mesma lógica do setInterval do Bun) — 1x por dia
+[triggers]
+crons = ["0 3 * * *"]
+
+# Credenciais do dashboard. NÃO comitar senha — use `wrangler secret put ADMIN_PASSWORD`
+# ou `--var ADMIN_PASSWORD:...` no wrangler dev. Sem isso, a senha é gerada aleatória.
+# [vars]
+# ADMIN_PASSWORD = "troque-por-um-segredo"

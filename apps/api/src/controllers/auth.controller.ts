@@ -7,7 +7,7 @@ import {
   destroySession,
 } from "../services/auth.service";
 
-export function login({
+export async function login({
   body,
   set,
 }: Pick<HandlerContext, "body" | "set"> & { body: { username: string; password: string } }) {
@@ -15,11 +15,11 @@ export function login({
     set.status = 401;
     return { error: "credenciais inválidas" };
   }
-  return { token: createSession(), user: ADMIN_USER };
+  return { token: await createSession(), user: ADMIN_USER };
 }
 
-export function logout({ request }: Pick<HandlerContext, "request">) {
-  destroySession(bearerToken(request));
+export async function logout({ request }: Pick<HandlerContext, "request">) {
+  await destroySession(bearerToken(request));
   return { ok: true };
 }
 

@@ -1,30 +1,36 @@
 import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { join } from "node:path";
-import { sql } from "drizzle-orm";
-import { db } from "./db";
+import { db, initBunDb } from "./db";
 import { projects } from "./db/schema";
 import { routes } from "./routes";
-import { ADMIN_PASSWORD, ADMIN_USER, PASSWORD_WAS_GENERATED, PORT, RETENTION_DAYS } from "./config";
+import { runRetention } from "./lib/retention";
+import { adminPassword, ADMIN_USER, PASSWORD_WAS_GENERATED, PORT } from "./config";
+
+// Bootstrap do banco (bun:sqlite, VPS) antes de servir qualquer request
+await initBunDb();
 
 // Seed de um projeto demo para o DSN funcionar de cara
-if (db.select().from(projects).all().length === 0) {
+if ((await db.select().from(projects).all()).length === 0) {
   const key = crypto.randomUUID().replace(/-/g, "");
-  db.insert(projects).values({ name: "Demo Project", publicKey: key, createdAt: Date.now() }).run();
+  await db
+    .insert(projects)
+    .values({ name: "Demo Project", publicKey: key, createdAt: Date.now() })
+    .run();
   console.log(`[sentrylike] seeded "Demo Project" (id=1), public key: ${key}`);
 }
 
 if (PASSWORD_WAS_GENERATED) {
-  console.log(`[sentrylike] ADMIN_PASSWORD not set — generated password: ${ADMIN_PASSWORD}`);
+  console.log(`[sentrylike] ADMIN_PASSWORD not set — generated password: ${adminPassword()}`);
   console.log(`[sentrylike] dashboard login: user "${ADMIN_USER}" / senha acima`);
   console.log("[sentrylike] set ADMIN_PASSWORD env var to make it stable across restarts");
 }
 
-// Retenção: apaga eventos antigos a cada hora
+/**
+ * Retenção periódica no Bun (na Cloudflare vira cron trigger no worker.ts).
+ */
 setInterval(() => {
-  const cutoff = Date.now() - RETENTION_DAYS * 86400_000;
-  db.run(sql`DELETE FROM events WHERE timestamp < ${cutoff}`);
-  db.run(sql`DELETE FROM transactions WHERE timestamp < ${cutoff}`);
+  runRetention().catch((e) => console.error("[sentrylike] retention failed", e));
 }, 3600_000).unref();
 
 // --- static dashboard (build de produção) ---

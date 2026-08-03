@@ -43,13 +43,15 @@ export interface Cursor {
 }
 
 export function encodeCursor(lastSeen: number, id: number): string {
-  return Buffer.from(`${lastSeen}:${id}`).toString("base64url");
+  // btoa/atob (sem Buffer) — portável entre Bun e Workers
+  return btoa(`${lastSeen}:${id}`).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 export function decodeCursor(raw?: string): Cursor | null {
   if (!raw) return null;
   try {
-    const [ls, id] = Buffer.from(raw, "base64url").toString("utf8").split(":");
+    const decoded = atob(raw.replace(/-/g, "+").replace(/_/g, "/"));
+    const [ls, id] = decoded.split(":");
     const lastSeen = Number(ls);
     const idn = Number(id);
     if (!Number.isFinite(lastSeen) || !Number.isInteger(idn)) return null;
@@ -64,12 +66,12 @@ export function decodeCursor(raw?: string): Cursor | null {
  * Issues mescladas (merged_into != null) ficam ocultas; ignore com janela
  * expirada aparece como "unresolved".
  */
-export function listProjectIssues(
+export async function listProjectIssues(
   projectId: number,
   f: IssueFilters,
   cursor: Cursor | null = null,
   limit = 50,
-): IssuePage {
+): Promise<IssuePage> {
   const now = Date.now();
   const conds = [eq(issues.projectId, projectId), isNull(issues.mergedInto)];
 
@@ -116,7 +118,7 @@ export function listProjectIssues(
     if (pageCond) conds.push(pageCond);
   }
 
-  const rows = db
+  const rows = await db
     .select()
     .from(issues)
     .where(and(...conds))
@@ -134,7 +136,7 @@ export function listProjectIssues(
   };
 }
 
-export function recentIssues(status?: string, limit = 10): Issue[] {
+export async function recentIssues(status?: string, limit = 10): Promise<Issue[]> {
   const now = Date.now();
   const conds = [isNull(issues.mergedInto)];
   if (issueStatus(status) === "unresolved") {
@@ -144,18 +146,18 @@ export function recentIssues(status?: string, limit = 10): Issue[] {
   } else {
     conds.push(eq(issues.status, issueStatus(status)));
   }
-  return db
+  const rows = await db
     .select()
     .from(issues)
     .where(and(...conds))
     .orderBy(desc(issues.lastSeen))
     .limit(limit)
-    .all()
-    .map((r) => ({ ...r, status: effectiveStatus(r) }));
+    .all();
+  return rows.map((r) => ({ ...r, status: effectiveStatus(r) }));
 }
 
-export function getIssue(id: number): Issue | undefined {
-  const row = db.select().from(issues).where(eq(issues.id, id)).get();
+export async function getIssue(id: number): Promise<Issue | undefined> {
+  const row = await db.select().from(issues).where(eq(issues.id, id)).get();
   return row ? { ...row, status: effectiveStatus(row) } : undefined;
 }
 
@@ -176,26 +178,27 @@ export function updateIssueStatus(
     .run();
 }
 
-export function setIssueSeen(id: number) {
-  db.update(issues).set({ unread: 0 }).where(eq(issues.id, id)).run();
+export async function setIssueSeen(id: number) {
+  await db.update(issues).set({ unread: 0 }).where(eq(issues.id, id)).run();
 }
 
-export function assignIssue(id: number, assignedTo: string | null) {
-  db.update(issues)
+export async function assignIssue(id: number, assignedTo: string | null) {
+  await db
+    .update(issues)
     .set({ assignedTo: assignedTo ? assignedTo.trim().slice(0, 120) || null : null })
     .where(eq(issues.id, id))
     .run();
 }
 
-export function deleteIssue(id: number): boolean {
+export async function deleteIssue(id: number): Promise<boolean> {
   const existing = getIssue(id);
   if (!existing) return false;
-  db.delete(events).where(eq(events.issueId, id)).run();
-  db.delete(issues).where(eq(issues.id, id)).run();
+  await db.delete(events).where(eq(events.issueId, id)).run();
+  await db.delete(issues).where(eq(issues.id, id)).run();
   return true;
 }
 
-export function listIssueEvents(id: number): EventSummary[] {
+export async function listIssueEvents(id: number): Promise<EventSummary[]> {
   return db
     .select({
       id: events.id,
@@ -213,14 +216,16 @@ export function listIssueEvents(id: number): EventSummary[] {
     .all();
 }
 
-export function getEvent(id: string): (EventSummary & { payload: string }) | undefined {
-  return db.select().from(events).where(eq(events.id, id)).get();
+export async function getEvent(
+  id: string,
+): Promise<(EventSummary & { payload: string }) | undefined> {
+  return await db.select().from(events).where(eq(events.id, id)).get();
 }
 
-export function issueEventsPerDay(id: number, days = 14): DayCount[] {
+export async function issueEventsPerDay(id: number, days = 14): Promise<DayCount[]> {
   const now = Date.now();
   const since = now - days * 24 * 3600 * 1000;
-  const rows = db
+  const rows = await db
     .select({
       day: sql<string>`date(timestamp / 1000, 'unixepoch')`,
       count: sql<number>`count(*)`,
@@ -241,25 +246,29 @@ export function issueEventsPerDay(id: number, days = 14): DayCount[] {
  * guardando `original_issue_id` (para o unmerge). As origens ficam ocultas
  * com status "merged" + merged_into = alvo.
  */
-export function mergeIssues(targetId: number, ids: number[]): boolean {
-  const target = db.select().from(issues).where(eq(issues.id, targetId)).get();
+export async function mergeIssues(targetId: number, ids: number[]): Promise<boolean> {
+  const target = await db.select().from(issues).where(eq(issues.id, targetId)).get();
   if (!target) return false;
-  const sources = ids
-    .filter((id) => id !== targetId)
-    .map((id) => db.select().from(issues).where(eq(issues.id, id)).get())
-    .filter((r): r is IssueRow => !!r && r.mergedInto == null);
+  const sources: IssueRow[] = [];
+  for (const id of ids) {
+    if (id === targetId) continue;
+    const r = await db.select().from(issues).where(eq(issues.id, id)).get();
+    if (r && r.mergedInto == null) sources.push(r);
+  }
   if (!sources.length) return false;
 
   for (const src of sources) {
     // preserva a primeira origem registrada (merge em cascata)
-    db.update(events)
+    await db
+      .update(events)
       .set({
         issueId: targetId,
         originalIssueId: sql`coalesce(${events.originalIssueId}, ${src.id})`,
       })
       .where(eq(events.issueId, src.id))
       .run();
-    db.update(issues)
+    await db
+      .update(issues)
       .set({ status: "merged", mergedInto: targetId, unread: 0 })
       .where(eq(issues.id, src.id))
       .run();
@@ -270,8 +279,8 @@ export function mergeIssues(targetId: number, ids: number[]): boolean {
 }
 
 /** Restaura issues que foram mescladas no alvo, movendo de volta seus eventos. */
-export function unmergeIssues(targetId: number): boolean {
-  const merged = db
+export async function unmergeIssues(targetId: number): Promise<boolean> {
+  const merged = await db
     .select()
     .from(issues)
     .where(and(eq(issues.mergedInto, targetId), eq(issues.status, "merged")))
@@ -279,11 +288,13 @@ export function unmergeIssues(targetId: number): boolean {
   if (!merged.length) return false;
 
   for (const src of merged) {
-    db.update(events)
+    await db
+      .update(events)
       .set({ issueId: src.id })
       .where(and(eq(events.originalIssueId, src.id), eq(events.issueId, targetId)))
       .run();
-    db.update(issues)
+    await db
+      .update(issues)
       .set({
         status: "unresolved",
         mergedInto: null,
@@ -299,8 +310,8 @@ export function unmergeIssues(targetId: number): boolean {
 }
 
 /** Recalcula eventCount, firstSeen, lastSeen, priority a partir dos eventos. */
-function recomputeIssueStats(id: number) {
-  const row = db
+async function recomputeIssueStats(id: number) {
+  const row = await db
     .select({
       count: sql<number>`count(*)`,
       first: sql<number>`min(${events.timestamp})`,
@@ -310,7 +321,8 @@ function recomputeIssueStats(id: number) {
     .where(eq(events.issueId, id))
     .get();
   if (!row) return;
-  db.update(issues)
+  await db
+    .update(issues)
     .set({
       eventCount: row.count,
       firstSeen: row.first,
@@ -348,22 +360,22 @@ export function batchUpdate(ids: number[], action: BatchAction, ignoreUntil: num
 // Search salva (Fase 2)
 // ------------------------------------------------------------------
 
-export function listSavedSearches(projectId: number): SavedSearch[] {
-  return db
+export async function listSavedSearches(projectId: number): Promise<SavedSearch[]> {
+  const rows = await db
     .select()
     .from(savedSearches)
     .where(eq(savedSearches.projectId, projectId))
     .orderBy(desc(savedSearches.createdAt))
-    .all()
-    .map((r) => ({ ...r, filters: JSON.parse(r.filters) as SavedSearchFilters }));
+    .all();
+  return rows.map((r) => ({ ...r, filters: JSON.parse(r.filters) as SavedSearchFilters }));
 }
 
-export function createSavedSearch(
+export async function createSavedSearch(
   projectId: number,
   name: string,
   filters: SavedSearchFilters,
-): SavedSearch {
-  const row = db
+): Promise<SavedSearch> {
+  const row = await db
     .insert(savedSearches)
     .values({
       projectId,
@@ -376,9 +388,9 @@ export function createSavedSearch(
   return { id: row.id, projectId, name: name.trim().slice(0, 80), filters, createdAt: Date.now() };
 }
 
-export function deleteSavedSearch(id: number): boolean {
-  const existing = db.select().from(savedSearches).where(eq(savedSearches.id, id)).get();
+export async function deleteSavedSearch(id: number): Promise<boolean> {
+  const existing = await db.select().from(savedSearches).where(eq(savedSearches.id, id)).get();
   if (!existing) return false;
-  db.delete(savedSearches).where(eq(savedSearches.id, id)).run();
+  await db.delete(savedSearches).where(eq(savedSearches.id, id)).run();
   return true;
 }

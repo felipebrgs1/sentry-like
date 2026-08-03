@@ -52,15 +52,15 @@ function eventCulprit(event: SentryEvent): string | null {
  * - ignored (sem janela) + evento novo → continua ignorada
  * - ignored com janela expirada → reabre sem badge de regressão
  */
-export function storeEvent(projectId: number, event: SentryEvent): string {
-  const fingerprint = computeFingerprint(event);
+export async function storeEvent(projectId: number, event: SentryEvent): Promise<string> {
+  const fingerprint = await computeFingerprint(event);
   const ts = normalizeTimestamp(event.timestamp);
   const now = Date.now();
   const title = eventTitle(event);
   const level = event.level ?? "error";
   const id = (event.event_id ?? crypto.randomUUID()).replace(/-/g, "");
 
-  const existing = db
+  const existing = await db
     .select()
     .from(issues)
     .where(and(eq(issues.projectId, projectId), eq(issues.fingerprint, fingerprint)))
@@ -76,7 +76,8 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
     const staysIgnored = existing.status === "ignored" && !ignoreExpired;
     const nextStatus = staysIgnored ? "ignored" : "unresolved";
 
-    db.update(issues)
+    await db
+      .update(issues)
       .set({
         lastSeen: Math.max(existing.lastSeen, ts),
         eventCount: existing.eventCount + 1,
@@ -100,7 +101,7 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
       .run();
     issueId = existing.id;
   } else {
-    const row = db
+    const row = await db
       .insert(issues)
       .values({
         projectId,
@@ -122,7 +123,8 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
     issueId = row.id;
   }
 
-  db.insert(events)
+  await db
+    .insert(events)
     .values({
       id,
       projectId,
@@ -161,7 +163,10 @@ function browserFrom(event: SentryEvent): string | null {
  * Persiste uma transaction com seus spans (waterfall).
  * Timestamps do protocolo são segundos (float) — normaliza para ms.
  */
-export function storeTransaction(projectId: number, event: SentryEvent): string | null {
+export async function storeTransaction(
+  projectId: number,
+  event: SentryEvent,
+): Promise<string | null> {
   const id = (event.event_id ?? crypto.randomUUID()).replace(/-/g, "");
   const end = normalizeTimestamp(event.timestamp);
   const start = normalizeTimestamp(event.start_timestamp ?? event.timestamp);
@@ -171,7 +176,8 @@ export function storeTransaction(projectId: number, event: SentryEvent): string 
   const measurements =
     event.measurements && Object.keys(event.measurements).length ? event.measurements : null;
 
-  db.insert(transactions)
+  await db
+    .insert(transactions)
     .values({
       id,
       projectId,
@@ -202,7 +208,8 @@ export function storeTransaction(projectId: number, event: SentryEvent): string 
     const sStart = normalizeTimestamp(s.start_timestamp ?? s.timestamp);
     const sEnd = normalizeTimestamp(s.timestamp ?? s.start_timestamp);
     if (!s.span_id || (sStart === rootStart && sEnd === rootEnd)) continue; // span é a própria transaction
-    db.insert(spans)
+    await db
+      .insert(spans)
       .values({
         id: s.span_id,
         transactionId: id,
@@ -260,7 +267,7 @@ function sessionTs(v?: number | string): number | null {
 }
 
 /** Sessão (crash-free tracking): upsert por sid. */
-export function storeSession(projectId: number, payload: unknown): void {
+export async function storeSession(projectId: number, payload: unknown): Promise<void> {
   const s = (payload ?? {}) as {
     sid?: string;
     started?: number | string;
@@ -272,7 +279,8 @@ export function storeSession(projectId: number, payload: unknown): void {
     attrs?: { release?: string; environment?: string };
   };
   if (!s.sid) return;
-  db.insert(sentrySessions)
+  await db
+    .insert(sentrySessions)
     .values({
       sid: s.sid,
       projectId,
@@ -300,7 +308,7 @@ export function storeSession(projectId: number, payload: unknown): void {
 }
 
 /** User feedback (widget do Sentry): upsert por event_id. */
-export function storeUserReport(projectId: number, payload: unknown): void {
+export async function storeUserReport(projectId: number, payload: unknown): Promise<void> {
   const r = (payload ?? {}) as {
     event_id?: string;
     name?: string;
@@ -309,7 +317,8 @@ export function storeUserReport(projectId: number, payload: unknown): void {
     timestamp?: number;
   };
   if (!r.event_id) return;
-  db.insert(userReports)
+  await db
+    .insert(userReports)
     .values({
       eventId: r.event_id,
       projectId,
@@ -369,9 +378,10 @@ export async function storeReplay(
 }
 
 /** Client report: estatísticas de envio do SDK (para métricas futuras). */
-export function storeClientReport(projectId: number, payload: unknown): void {
+export async function storeClientReport(projectId: number, payload: unknown): Promise<void> {
   const r = (payload ?? {}) as { timestamp?: number; discarded_events?: unknown };
-  db.insert(clientReports)
+  await db
+    .insert(clientReports)
     .values({
       id: crypto.randomUUID().replace(/-/g, ""),
       projectId,

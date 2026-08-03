@@ -20,10 +20,25 @@ function extractSentryKey(request: Request): string | null {
   return fromQuery ?? null;
 }
 
-function maybeDecompress(buf: Uint8Array, encoding: string | null): Uint8Array {
-  if (encoding === "gzip") return Bun.gunzipSync(buf as Uint8Array<ArrayBuffer>);
-  if (encoding === "deflate") return Bun.inflateSync(buf as Uint8Array<ArrayBuffer>);
-  return buf;
+/**
+ * Decompression portável (Web Streams) — funciona em Bun e Cloudflare Workers.
+ * `deflate` do Sentry é RAW (RFC 1951), então usamos "deflate-raw".
+ * Fallback para Bun.gunzipSync/inflateSync caso o stream não suporte.
+ */
+async function maybeDecompress(buf: Uint8Array, encoding: string | null): Promise<Uint8Array> {
+  if (!encoding) return buf;
+  try {
+    const format = encoding === "gzip" ? "gzip" : "deflate-raw";
+    const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream(format));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  } catch {
+    // VPS/Bun fallback (typeof guard para não quebrar no Worker)
+    if (typeof Bun !== "undefined") {
+      if (encoding === "gzip") return Bun.gunzipSync(buf as Uint8Array<ArrayBuffer>);
+      return Bun.inflateSync(buf as Uint8Array<ArrayBuffer>);
+    }
+    throw new Error("unsupported content-encoding: " + encoding);
+  }
 }
 
 async function readRawBody(request: Request, parsed: unknown): Promise<Uint8Array> {
@@ -50,8 +65,8 @@ function originAllowed(origin: string | null, allowed: string[]): boolean {
 }
 
 /** Valida projeto, key do DSN e Origin. Preenche set.status em caso de erro. */
-function guardProject(ctx: HandlerContext): Project | null {
-  const project = getProject(Number(ctx.params.projectId));
+async function guardProject(ctx: HandlerContext): Promise<Project | null> {
+  const project = await getProject(Number(ctx.params.projectId));
   if (!project) {
     ctx.set.status = 404;
     return null;
@@ -106,8 +121,8 @@ async function processEnvelope(
   let lastEventId: string | null = null;
   const limitedCategories: RateCategory[] = [];
 
-  const limited = (c: RateCategory): boolean => {
-    if (isRateLimited(project.id, c)) {
+  const limited = async (c: RateCategory): Promise<boolean> => {
+    if (await isRateLimited(project.id, c)) {
       limitedCategories.push(c);
       return true;
     }
@@ -119,32 +134,32 @@ async function processEnvelope(
     const text = new TextDecoder().decode(item.payload);
     switch (type) {
       case "event": {
-        if (limited("error")) break;
+        if (await limited("error")) break;
         const res = validateEvent(JSON.parse(text));
         if (!res.ok) break; // malformado: descarta silenciosamente
-        lastEventId = ingestService.storeEvent(project.id, withTrace(res.event, traceHeader));
+        lastEventId = await ingestService.storeEvent(project.id, withTrace(res.event, traceHeader));
         break;
       }
       case "transaction": {
-        if (limited("transaction")) break;
+        if (await limited("transaction")) break;
         // Fase 4: persiste transaction + spans para o waterfall/performance
         const evt = JSON.parse(text) as SentryEvent;
-        const stored = ingestService.storeTransaction(project.id, evt);
+        const stored = await ingestService.storeTransaction(project.id, evt);
         lastEventId ??= stored ?? evt.event_id ?? null;
         break;
       }
       case "attachment": {
-        if (limited("attachment")) break;
+        if (await limited("attachment")) break;
         await ingestService.storeAttachment(project.id, envelopeEventId, item.header, item.payload);
         break;
       }
       case "session": {
-        if (limited("session")) break;
+        if (await limited("session")) break;
         ingestService.storeSession(project.id, JSON.parse(text));
         break;
       }
       case "user_report": {
-        if (limited("user_report")) break;
+        if (await limited("user_report")) break;
         ingestService.storeUserReport(project.id, JSON.parse(text));
         break;
       }
@@ -177,10 +192,10 @@ function rateLimitResponse(ctx: HandlerContext, projectId: number, categories: R
 
 /** POST /api/:projectId/envelope/ — SDKs modernos */
 export async function envelope(ctx: HandlerContext) {
-  const project = guardProject(ctx);
+  const project = await guardProject(ctx);
   if (!project) return {};
 
-  const raw = maybeDecompress(
+  const raw = await maybeDecompress(
     await readRawBody(ctx.request, ctx.body),
     ctx.request.headers.get("content-encoding"),
   );
@@ -205,15 +220,15 @@ export async function envelope(ctx: HandlerContext) {
 
 /** POST /api/:projectId/store/ — SDKs legados (corpo = evento JSON) */
 export async function store(ctx: HandlerContext) {
-  const project = guardProject(ctx);
+  const project = await guardProject(ctx);
   if (!project) return {};
 
-  if (isRateLimited(project.id, "error")) {
+  if (await isRateLimited(project.id, "error")) {
     return rateLimitResponse(ctx, project.id, ["error"]);
   }
 
   try {
-    const raw = maybeDecompress(
+    const raw = await maybeDecompress(
       await readRawBody(ctx.request, ctx.body),
       ctx.request.headers.get("content-encoding"),
     );
@@ -224,9 +239,9 @@ export async function store(ctx: HandlerContext) {
     }
     // SDKs que enviam transactions pelo /store/ legado
     if (res.event.type === "transaction") {
-      return { id: ingestService.storeTransaction(project.id, res.event) ?? "ignored" };
+      return { id: (await ingestService.storeTransaction(project.id, res.event)) ?? "ignored" };
     }
-    return { id: ingestService.storeEvent(project.id, res.event) };
+    return { id: await ingestService.storeEvent(project.id, res.event) };
   } catch {
     ctx.set.status = 400;
     return { detail: "invalid event" };
@@ -235,7 +250,7 @@ export async function store(ctx: HandlerContext) {
 
 /** POST /api/tunnel — SDKs de browser via proxy (anti ad-blocker). DSN vem no header do envelope. */
 export async function tunnel(ctx: HandlerContext) {
-  const raw = maybeDecompress(
+  const raw = await maybeDecompress(
     await readRawBody(ctx.request, ctx.body),
     ctx.request.headers.get("content-encoding"),
   );
@@ -256,7 +271,7 @@ export async function tunnel(ctx: HandlerContext) {
       ctx.set.status = 403;
       return { detail: "invalid DSN" };
     }
-    const project = getProjectByKey(parsed.publicKey);
+    const project = await getProjectByKey(parsed.publicKey);
     if (!project) {
       ctx.set.status = 403;
       return { detail: "unknown project" };

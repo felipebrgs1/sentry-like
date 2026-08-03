@@ -92,6 +92,17 @@ docker run -d --name sentrylike \
 Ou `docker compose up -d`. Coloque um Caddy/nginx na frente para TLS.
 Com TLS, o DSN vira `https://<key>@errors.seudominio.com/1`.
 
+## Deploy (Cloudflare Workers — opcional)
+
+Também roda na Cloudflare (D1 + R2 + KV + Static Assets), sem VPS:
+
+```bash
+wrangler login
+bash deploy/cf-setup.sh   # cria D1/R2/KV, builda o front e faz deploy
+```
+
+Guia completo (incluindo integração Git sem build local): [`deploy/CF-DEPLOY.md`](deploy/CF-DEPLOY.md).
+
 ## Usando com SDKs Sentry
 
 ```ts
