@@ -51,7 +51,6 @@ export function LoginPage() {
                   placeholder="admin"
                   autoComplete="username"
                   className="pl-8"
-                  autoFocus
                 />
               </div>
             </div>

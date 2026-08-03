@@ -1,6 +1,15 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react","react-perf","oxc","typescript"],
+  "plugins": [
+    "react",
+    "react-perf",
+    "import",
+    "promise",
+    "jsx-a11y",
+    "unicorn",
+    "oxc",
+    "typescript"
+  ],
   "ignorePatterns": ["node_modules/**", "dist/**", ".turbo/**", "bun.lock"],
   "categories": {
     "correctness": "error",
@@ -8,14 +17,17 @@
   },
   "rules": {
     // falso positivo com o JSX transform moderno (jsx: react-jsx) — React não precisa estar em escopo
-    "react-in-jsx-scope": "off"
+    "react-in-jsx-scope": "off",
+    // import de CSS é padrão do Vite (side-effect)
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }]
   },
   "overrides": [
     {
       // código gerado pelo shadcn — não mexemos no estilo dele
       "files": ["apps/web/src/components/ui/**"],
       "rules": {
-        "no-shadow": "off"
+        "no-shadow": "off",
+        "jsx-a11y/label-has-associated-control": "off"
       }
     }
   ]

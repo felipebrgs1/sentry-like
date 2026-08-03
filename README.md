@@ -30,6 +30,23 @@ Configurações: `.oxlintrc.json` (lint) e `.oxfmtrc.json` (format). No editor,
 instale a extensão **oxc.oxc-vscode** — o `.vscode/settings.json` já configura
 oxfmt como formatador padrão (format on save) e oxlint no save.
 
+### Plugins ativos
+
+| Plugin       | O que pega                                               | Estado no projeto        |
+| ------------ | -------------------------------------------------------- | ------------------------ |
+| `react`      | hooks, JSX, estado (64 regras)                           | ✅ sem avisos            |
+| `react-perf` | props/callback criados em todo render                    | ✅ sem avisos            |
+| `jsx-a11y`   | acessibilidade (labels, autofocus, eventos de teclado)   | ✅ corrigido o que achou |
+| `import`     | organização de imports ESM                               | ✅ sem avisos            |
+| `promise`    | promises mal escritas (`new Promise` desnecessário etc.) | ✅ sem avisos            |
+| `unicorn`    | estilo moderno (`.toReversed()` em vez de `.reverse()`)  | ✅ sem avisos            |
+| `oxc`        | regras próprias do Oxc                                   | ✅ sem avisos            |
+| `typescript` | uso correto de TS (110 regras)                           | ✅ sem avisos            |
+
+O plugin `node` existe mas não está ativo: as regras úteis ficam na categoria
+`restriction` (não roda por padrão) e `process.env` é intencional no `config.ts`.
+Se quiser, ative com `-D node/no-process-env` em pontos específicos.
+
 ## Como funciona a compatibilidade com Sentry
 
 Qualquer SDK oficial do Sentry funciona apontando o DSN para este servidor:
