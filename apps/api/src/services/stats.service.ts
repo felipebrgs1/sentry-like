@@ -1,4 +1,4 @@
-import { gt, sql } from "drizzle-orm";
+import { and, gt, isNotNull, sql } from "drizzle-orm";
 import type { OverviewStats, TopRoute } from "@sentrylike/shared";
 import { db } from "../db";
 import { events, issues, transactions } from "../db/schema";
@@ -12,6 +12,19 @@ async function countEvents(cond: any) {
         .select({ c: sql<number>`count(*)` })
         .from(events)
         .where(cond)
+        .get()
+    )?.c ?? 0
+  );
+}
+
+/** Usuários ativos (presença aproximada: user.id distinto em transações recentes). */
+async function countActiveUsers(since: number): Promise<number> {
+  return (
+    (
+      await db
+        .select({ c: sql<number>`count(distinct ${transactions.userId})` })
+        .from(transactions)
+        .where(and(gt(transactions.timestamp, since), isNotNull(transactions.userId)))
         .get()
     )?.c ?? 0
   );
@@ -126,5 +139,10 @@ export async function overview(): Promise<OverviewStats> {
     txP9524h: percentile(txDurations, 95),
     txErrorRate24h: txDurations.length ? txErrors / txDurations.length : 0,
     topRoutes,
+    activeUsers: {
+      m15: await countActiveUsers(now - 15 * 60_000),
+      m60: await countActiveUsers(now - 60 * 60_000),
+      h24: await countActiveUsers(d24),
+    },
   };
 }

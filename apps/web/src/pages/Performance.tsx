@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Gauge, Search } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Gauge, Search, Trash2 } from "lucide-react";
 import type {
   DayStat,
   ReleasePerformance,
@@ -179,6 +179,34 @@ export function PerformancePage() {
     enabled: !!txId,
   });
 
+  const qc = useQueryClient();
+  const invalidateTx = () => {
+    qc.invalidateQueries({ queryKey: ["tx-summaries"] });
+    qc.invalidateQueries({ queryKey: ["tx-list"] });
+    qc.invalidateQueries({ queryKey: ["tx-series"] });
+    qc.invalidateQueries({ queryKey: ["release-performance"] });
+  };
+  const deleteRoute = useMutation({
+    mutationFn: (name: string) =>
+      api(`/v1/projects/${projectId}/transactions?name=${encodeURIComponent(name)}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      invalidateTx();
+      if (selectedName) {
+        setSelectedName(null);
+        setSelectedTxId(null);
+      }
+    },
+  });
+  const deleteTx = useMutation({
+    mutationFn: (id: string) => api(`/v1/transactions/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      invalidateTx();
+      setSelectedTxId(null);
+    },
+  });
+
   const selected = summaries?.find((s) => s.name === selectedName);
   const totalCount = summaries?.reduce((a, s) => a + s.count, 0) ?? 0;
 
@@ -317,9 +345,22 @@ export function PerformancePage() {
                         </span>
                         <span className="text-muted-foreground">{timeAgo(t.timestamp)}</span>
                       </div>
-                      <div className="mt-0.5 truncate font-mono text-muted-foreground">
-                        {t.id.slice(0, 12)} · {t.release ?? "sem release"}
-                        {t.browser ? ` · ${t.browser}` : ""}
+                      <div className="mt-0.5 flex items-center justify-between gap-2">
+                        <span className="truncate font-mono text-muted-foreground">
+                          {t.id.slice(0, 12)} · {t.release ?? "sem release"}
+                          {t.browser ? ` · ${t.browser}` : ""}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm("Deletar esta transação?")) deleteTx.mutate(t.id);
+                          }}
+                          className="shrink-0 text-muted-foreground hover:text-destructive"
+                          aria-label="deletar transação"
+                          title="deletar transação"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
                       </div>
                     </button>
                   ))}
@@ -358,6 +399,7 @@ export function PerformancePage() {
                       <TableHead className="text-right">Erro</TableHead>
                       <TableHead className="text-right">/hora</TableHead>
                       <TableHead className="text-right">Última</TableHead>
+                      <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -386,11 +428,25 @@ export function PerformancePage() {
                         <TableCell className="text-right text-muted-foreground">
                           {timeAgo(s.lastSeen)}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Deletar todas as transações de "${s.name}"?`))
+                                deleteRoute.mutate(s.name);
+                            }}
+                            className="text-muted-foreground hover:text-destructive"
+                            aria-label="deletar rota"
+                            title="deletar rota"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {!summaries?.length && (
                       <TableRow>
-                        <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                           Nenhuma transação ainda — configure o SDK com{" "}
                           <code className="font-mono">tracesSampleRate</code>.
                         </TableCell>
@@ -419,6 +475,7 @@ export function PerformancePage() {
                       <TableHead className="text-right">p95</TableHead>
                       <TableHead className="text-right">Erro</TableHead>
                       <TableHead className="text-right">Última</TableHead>
+                      <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>

@@ -173,6 +173,13 @@ interface TransactionContext {
   status?: string;
 }
 
+/** user.id do payload (id numérico ou string) — para presença aproximada. */
+function userFrom(event: SentryEvent): string | null {
+  const id = (event.user as { id?: unknown } | undefined)?.id;
+  if (id == null || id === "") return null;
+  return String(id).slice(0, 120);
+}
+
 function browserFrom(event: SentryEvent): string | null {
   const b = event.contexts?.browser as { name?: string; version?: string } | undefined;
   if (!b?.name) return null;
@@ -213,6 +220,7 @@ export async function storeTransaction(
         ((event.user as { geo?: { country_code?: string } } | undefined)?.geo?.country_code ??
           null) ||
         null,
+      userId: userFrom(event),
       traceId: trace.trace_id ?? null,
       spanId: trace.span_id ?? null,
       parentSpanId: trace.parent_span_id ?? null,

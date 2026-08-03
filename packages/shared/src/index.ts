@@ -195,6 +195,7 @@ export interface OverviewStats {
   txP9524h: number;
   txErrorRate24h: number;
   topRoutes: TopRoute[];
+  activeUsers: { m15: number; m60: number; h24: number };
 }
 
 export interface TopRoute {

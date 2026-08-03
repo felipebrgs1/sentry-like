@@ -195,11 +195,13 @@ export const transactions = sqliteTable(
     spanId: text("span_id"),
     parentSpanId: text("parent_span_id"),
     measurements: text("measurements"), // JSON de web vitals
+    userId: text("user_id"), // user.id do payload — presença aproximada
     payload: text("payload").notNull(),
   },
   (t) => [
     index("transactions_project_ts").on(t.projectId, t.timestamp),
     index("transactions_name_ts").on(t.name, t.timestamp),
+    index("transactions_user_ts").on(t.userId, t.timestamp),
   ],
 );
 

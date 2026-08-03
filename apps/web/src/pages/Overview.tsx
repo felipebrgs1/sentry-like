@@ -8,6 +8,7 @@ import {
   Gauge,
   LayoutGrid,
   TriangleAlert,
+  Users,
   Zap,
 } from "lucide-react";
 import type { Issue, OverviewStats, ProjectWithStats } from "@sentrylike/shared";
@@ -113,6 +114,12 @@ export function OverviewPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Transações · 24h" value={stats?.transactions24h ?? 0} icon={Gauge} />
+        <StatCard
+          label="Usuários ativos · 15m"
+          value={stats?.activeUsers?.m15 ?? 0}
+          icon={Users}
+          hint={`1h: ${stats?.activeUsers?.m60 ?? 0} · 24h: ${stats?.activeUsers?.h24 ?? 0}`}
+        />
         <StatCard label="Latência média · 24h" value={stats?.txAvg24h ?? 0} icon={Zap} hint="ms" />
         <StatCard
           label="p95 · 24h"

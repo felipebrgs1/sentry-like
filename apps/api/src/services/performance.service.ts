@@ -198,6 +198,33 @@ export async function getTransaction(id: string): Promise<TransactionDetail | un
   return { ...rowToTransaction(row), spans: spanList };
 }
 
+/** Deleta uma transação e seus spans (spans têm FK → transactions no D1). */
+export async function deleteTransaction(id: string): Promise<boolean> {
+  const existing = await db.select().from(transactions).where(eq(transactions.id, id)).get();
+  if (!existing) return false;
+  await db.delete(spans).where(eq(spans.transactionId, id)).run();
+  await db.delete(transactions).where(eq(transactions.id, id)).run();
+  return true;
+}
+
+/** Deleta todas as transações de uma rota (mesmo name) + spans. Retorna quantas. */
+export async function deleteTransactionsByName(projectId: number, name: string): Promise<number> {
+  const rows = await db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(and(eq(transactions.projectId, projectId), eq(transactions.name, name)))
+    .all();
+  if (!rows.length) return 0;
+  for (const r of rows) {
+    await db.delete(spans).where(eq(spans.transactionId, r.id)).run();
+  }
+  await db
+    .delete(transactions)
+    .where(and(eq(transactions.projectId, projectId), eq(transactions.name, name)))
+    .run();
+  return rows.length;
+}
+
 // ------------------------------------------------------------------
 // métricas agregadas
 // ------------------------------------------------------------------

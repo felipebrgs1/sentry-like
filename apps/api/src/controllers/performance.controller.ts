@@ -32,6 +32,30 @@ export async function series({ params, query }: Pick<HandlerContext, "params" | 
   return perfService.transactionSeries(Number(params.id), query?.name ?? "", filters(query), days);
 }
 
+/** DELETE /v1/transactions/:id — remove uma transação + spans */
+export async function removeOne({ params, set }: Pick<HandlerContext, "params" | "set">) {
+  if (!(await perfService.deleteTransaction(params.id))) {
+    set.status = 404;
+    return { error: "not found" };
+  }
+  return { ok: true };
+}
+
+/** DELETE /v1/projects/:id/transactions?name=… — remove todas da rota */
+export async function removeByName({
+  params,
+  query,
+  set,
+}: Pick<HandlerContext, "params" | "query" | "set">) {
+  const name = query?.name;
+  if (!name) {
+    set.status = 400;
+    return { error: "name is required" };
+  }
+  const deleted = await perfService.deleteTransactionsByName(Number(params.id), name);
+  return { ok: true, deleted };
+}
+
 /** GET /v1/transactions/:id */
 export async function detail({ params, set }: Pick<HandlerContext, "params" | "set">) {
   const t = await perfService.getTransaction(params.id);

@@ -245,6 +245,8 @@ const ALTER_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS saved_searches (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL REFERENCES projects(id), name TEXT NOT NULL, filters TEXT NOT NULL, created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS saved_searches_project ON saved_searches(project_id)`,
   `ALTER TABLE transactions ADD COLUMN country TEXT`,
+  `ALTER TABLE transactions ADD COLUMN user_id TEXT`,
+  `CREATE INDEX IF NOT EXISTS transactions_user_ts ON transactions(user_id, timestamp)`,
   `ALTER TABLE projects ADD COLUMN org_id INTEGER`,
   `ALTER TABLE sessions ADD COLUMN user_id INTEGER`,
 ];

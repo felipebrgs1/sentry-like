@@ -50,4 +50,12 @@ export const performanceRoutes = new Elysia({ prefix: "/v1" })
       }),
     },
   )
-  .get("/transactions/:id", ({ params, set }) => perf.detail({ params, set }));
+  .get("/transactions/:id", ({ params, set }) => perf.detail({ params, set }))
+  .delete("/transactions/:id", ({ params, set }) => perf.removeOne({ params, set }))
+  .delete(
+    "/projects/:id/transactions",
+    ({ params, query, set }) => perf.removeByName({ params, query, set }),
+    {
+      query: t.Object({ name: t.String({ minLength: 1 }) }),
+    },
+  );
