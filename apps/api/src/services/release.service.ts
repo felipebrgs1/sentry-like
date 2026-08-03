@@ -9,7 +9,7 @@ import type {
   ReleaseDetail,
 } from "@sentrylike/shared";
 import { db } from "../db";
-import { events, issues, releases, transactions } from "../db/schema";
+import { events, issues, releases, sentrySessions, transactions } from "../db/schema";
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
@@ -41,7 +41,7 @@ async function releaseMeta(
 // listagens
 // ------------------------------------------------------------------
 
-/** Releases auto-descobertas (events + transactions) mescladas com metadata. */
+/** Releases auto-descobertas (events + transactions + sessões) mescladas com metadata. */
 export async function listReleases(projectId: number): Promise<Release[]> {
   const meta = await releaseMeta(projectId);
 
@@ -70,7 +70,20 @@ export async function listReleases(projectId: number): Promise<Release[]> {
     .groupBy(transactions.release)
     .all();
 
+  // sessões também carimbam releases (crash-free) — releases que só existem em sessões
+  const sessRows = await db
+    .select({
+      name: sentrySessions.release,
+      first: sql<number>`min(coalesce(${sentrySessions.timestamp}, ${sentrySessions.started}, 0))`,
+      last: sql<number>`max(coalesce(${sentrySessions.timestamp}, ${sentrySessions.started}, 0))`,
+    })
+    .from(sentrySessions)
+    .where(and(eq(sentrySessions.projectId, projectId), isNotNull(sentrySessions.release)))
+    .groupBy(sentrySessions.release)
+    .all();
+
   const txByName = new Map(txRows.map((r) => [r.name, r]));
+  const sessByName = new Map(sessRows.map((r) => [r.name, r]));
   const out: Release[] = [];
   for (const r of evRows) {
     if (!r.name) continue;
@@ -89,17 +102,35 @@ export async function listReleases(projectId: number): Promise<Release[]> {
     });
     txByName.delete(r.name);
   }
-  // releases que só têm transactions (sem eventos)
+  // releases que só têm transactions e/ou sessões (sem eventos)
   for (const [name, tx] of txByName) {
+    if (!name) continue;
+    const m = meta.get(name);
+    const s = sessByName.get(name);
+    out.push({
+      name,
+      projectId,
+      firstSeen: Math.min(tx.first, s?.first ?? tx.first),
+      lastSeen: Math.max(tx.last, s?.last ?? tx.last),
+      events: 0,
+      transactions: tx.count,
+      issues: 0,
+      deployedAt: m?.deployedAt ?? null,
+      commits: m?.commits ?? [],
+    });
+    sessByName.delete(name);
+  }
+  // releases que só têm sessões
+  for (const [name, s] of sessByName) {
     if (!name) continue;
     const m = meta.get(name);
     out.push({
       name,
       projectId,
-      firstSeen: tx.first,
-      lastSeen: tx.last,
+      firstSeen: s.first,
+      lastSeen: s.last,
       events: 0,
-      transactions: tx.count,
+      transactions: 0,
       issues: 0,
       deployedAt: m?.deployedAt ?? null,
       commits: m?.commits ?? [],
@@ -161,6 +192,18 @@ export async function getReleaseDetail(
   const durations = txRows.map((r) => r.duration).toSorted((a, b) => a - b);
   const errors = txRows.filter((r) => r.status !== "ok").length;
 
+  // crash-free da release (sessões)
+  const sessRows = await db
+    .select({
+      total: sql<number>`count(*)`,
+      crashed: sql<number>`sum(case when status in ('crashed','abnormal') then 1 else 0 end)`,
+    })
+    .from(sentrySessions)
+    .where(and(eq(sentrySessions.projectId, projectId), eq(sentrySessions.release, name)))
+    .get();
+  const sessions = sessRows?.total ?? 0;
+  const crashed = sessRows?.crashed ?? 0;
+
   return {
     ...base,
     newIssues,
@@ -173,6 +216,8 @@ export async function getReleaseDetail(
       : 0,
     txP95: percentile(durations, 95),
     txErrorRate: durations.length ? errors / durations.length : 0,
+    crashFree: sessions > 0 ? 1 - crashed / sessions : null,
+    sessions,
   };
 }
 
@@ -194,6 +239,8 @@ export async function compareReleases(
       txAvg: detail.txAvg,
       txP95: detail.txP95,
       txErrorRate: detail.txErrorRate,
+      crashFree: detail.crashFree,
+      sessions: detail.sessions,
       firstSeen: detail.firstSeen,
       lastSeen: detail.lastSeen,
     };

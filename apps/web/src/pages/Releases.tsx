@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, GitCommitHorizontal, Package } from "lucide-react";
-import type { Release, ReleaseCompare, ReleaseDetail } from "@sentrylike/shared";
+import type { DayCrashFree, Release, ReleaseCompare, ReleaseDetail } from "@sentrylike/shared";
 import { api } from "../api";
 import { LevelBadge } from "../components/LevelBadge";
 import { timeAgo } from "../lib/format";
@@ -36,6 +36,51 @@ function fmtPct(v: number): string {
   return `${(v * 100).toFixed(1)}%`;
 }
 
+/** Série temporal de crash-free (CSS puro). */
+function CrashFreeChart({ projectId, release }: { projectId: number; release: string }) {
+  const { data } = useQuery({
+    queryKey: ["crash-free-series", projectId, release],
+    queryFn: () =>
+      api<DayCrashFree[]>(
+        `/v1/projects/${projectId}/crash-free-series?release=${encodeURIComponent(release)}&days=14`,
+      ),
+  });
+  const days = data ?? [];
+  const hasData = days.some((d) => d.total > 0);
+  if (!hasData) return null;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground">
+          Crash-free · últimos 14 dias
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-2">
+        <div className="flex h-32 items-end gap-[3px]">
+          {days.map((d) => (
+            <div
+              key={d.date}
+              className="group relative flex h-full flex-1 flex-col justify-end"
+              title={`${d.date}: ${(d.crashFree * 100).toFixed(1)}% (${d.total} sessões)`}
+            >
+              <div
+                className={`min-h-[2px] w-full rounded-sm transition-colors ${
+                  d.crashFree >= 0.99
+                    ? "bg-emerald-500/60"
+                    : d.crashFree >= 0.95
+                      ? "bg-amber-500/60"
+                      : "bg-rose-500/60"
+                } group-hover:brightness-125`}
+                style={{ height: `${Math.max(d.crashFree * 100, 2)}%` }}
+              />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function Bars({ data }: { data: Array<{ name: string; count: number }> }) {
   const max = Math.max(1, ...data.map((d) => d.count));
   const total = data.reduce((a, d) => a + d.count, 0);
@@ -67,6 +112,8 @@ function CompareView({ data, onBack }: { data: ReleaseCompare; onBack: () => voi
     ["Issues (total)", String(data.a.issuesTotal), String(data.b.issuesTotal)],
     ["Transações", String(data.a.txCount), String(data.b.txCount)],
     ["Latência média", fmtMs(data.a.txAvg), fmtMs(data.b.txAvg)],
+    ["Crash-free", fmtPct(data.a.crashFree ?? 0), fmtPct(data.b.crashFree ?? 0)],
+    ["Sessões", String(data.a.sessions), String(data.b.sessions)],
     ["p95", fmtMs(data.a.txP95), fmtMs(data.b.txP95)],
     ["Taxa de erro", fmtPct(data.a.txErrorRate), fmtPct(data.b.txErrorRate)],
     ["Primeira ocorrência", timeAgo(data.a.firstSeen), timeAgo(data.b.firstSeen)],
@@ -231,13 +278,19 @@ export function ReleasesPage() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
             {[
               ["Eventos", String(detail.events)],
               ["Transações", String(detail.transactions)],
               ["Issues novas", String(detail.newIssues.length)],
               ["Latência média", fmtMs(detail.txAvg)],
               ["p95", fmtMs(detail.txP95)],
+              [
+                "Crash-free",
+                detail.crashFree != null
+                  ? `${(detail.crashFree * 100).toFixed(1)}% (${detail.sessions} sessões)`
+                  : "—",
+              ],
             ].map(([label, v]) => (
               <Card key={label}>
                 <CardContent className="p-3">
@@ -247,6 +300,8 @@ export function ReleasesPage() {
               </Card>
             ))}
           </div>
+
+          <CrashFreeChart projectId={Number(projectId)} release={detail.name} />
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Card>

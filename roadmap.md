@@ -18,6 +18,7 @@
 | Performance: página global + por projeto, waterfall, p50/p95/p99, web vitals | ✅     |
 | Alertas: regras (nova/regressão/spike/idade/rate/digest), webhook Slack/Discord, histórico | ✅ |
 | Releases: página por projeto, issues novas, comparação, webhook de deploy, distribuição | ✅ |
+| Sessões/crash-free por release (série + card) e user feedback no detalhe da issue | ✅ |
 | Busca/filtros de issues (título, nível, ambiente, release)             | ✅     |
 | Detalhe: stacktrace, breadcrumbs, tags, contexts, JSON raw, frequência | ✅     |
 | Fase 2 completa: fingerprint custom, ignore com janela, regressão, merge, lote, prioridade, search salva, cursor, unread, owner | ✅ |
@@ -80,11 +81,11 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 - [x] **Rate alert** — alertar quando ingestão chegar perto do limite (≥80% em 1min, 1x/hora)
 - [x] **Infra** — disparos de new_issue/regression na ingestão; pico/idade/rate/digest no check periódico (setInterval 5min na VPS, cron */5 no CF); histórico em `alert_logs` + página de Alertas com CRUD/testar/ligar-desligar
 
-## Fase 6 — Sessões, crash-free & feedback de usuário 📋
+## Fase 6 — Sessões, crash-free & feedback de usuário ✅
 
-- [ ] **Sessões** — aceitar items `sessions`, crash-free rate por release
-- [ ] **User feedback widget** — endpoint `user-report` + widget que o SDK exibe ao usuário após o erro
-- [ ] **Gráfico de crash-free por release** — página de release fica completa
+- [x] **Sessões** — aceitar items `sessions` (já na F1) + crash-free rate por release (status crashed/abnormal) com série temporal diária
+- [x] **User feedback widget** — endpoint legado `/api/:id/user-feedback/` (key do DSN) + item `user_report` do envelope (já na F1); feedback exibido no detalhe da issue (join por event_id normalizado)
+- [x] **Gráfico de crash-free por release** — página de release completa: card crash-free (sessões) + série de 14 dias colorida por saúde (≥99% verde, ≥95% âmbar, senão vermelho); releases agora também são auto-descobertas a partir de sessões
 
 ## Fase 7 — Multi-usuário & organizações 📋
 

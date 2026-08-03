@@ -353,6 +353,8 @@ export interface ReleaseDetail extends Release {
   txAvg: number;
   txP95: number;
   txErrorRate: number;
+  crashFree: number | null; // sessões da release (null = sem dados)
+  sessions: number;
 }
 
 export interface ReleaseCompare {
@@ -369,6 +371,8 @@ export interface ReleaseCompareRow {
   txAvg: number;
   txP95: number;
   txErrorRate: number;
+  crashFree: number | null;
+  sessions: number;
   firstSeen: number;
   lastSeen: number;
 }
@@ -376,4 +380,44 @@ export interface ReleaseCompareRow {
 export interface EnvCount {
   name: string;
   count: number;
+}
+
+// ------------------------------------------------------------------
+// Sessões & crash-free (Fase 6)
+// ------------------------------------------------------------------
+
+export interface CrashFreeRow {
+  release: string | null;
+  total: number;
+  crashed: number;
+  crashFree: number; // 0..1
+  lastSeen: number | null;
+}
+
+export interface DayCrashFree {
+  date: string;
+  total: number;
+  crashed: number;
+  crashFree: number; // 0..1
+}
+
+export interface SessionRow {
+  sid: string;
+  release: string | null;
+  environment: string | null;
+  started: number | null;
+  timestamp: number | null;
+  duration: number | null;
+  status: string | null;
+  errors: number | null;
+  did: string | null;
+}
+
+export interface UserReport {
+  eventId: string;
+  projectId: number;
+  name: string | null;
+  email: string | null;
+  comments: string | null;
+  timestamp: number;
 }

@@ -222,6 +222,28 @@ export async function envelope(ctx: HandlerContext) {
   }
 }
 
+/** POST /api/:projectId/user-feedback/ — widget legado de feedback do usuário */
+export async function userFeedback(ctx: HandlerContext) {
+  const project = await guardProject(ctx);
+  if (!project) return {};
+
+  if (await isRateLimited(project.id, "user_report")) {
+    return rateLimitResponse(ctx, project.id, ["user_report"]);
+  }
+
+  try {
+    const raw = await maybeDecompress(
+      await readRawBody(ctx.request, ctx.body),
+      ctx.request.headers.get("content-encoding"),
+    );
+    ingestService.storeUserReport(project.id, JSON.parse(new TextDecoder().decode(raw)));
+    return { ok: true };
+  } catch {
+    ctx.set.status = 400;
+    return { detail: "invalid user feedback" };
+  }
+}
+
 /** POST /api/:projectId/store/ — SDKs legados (corpo = evento JSON) */
 export async function store(ctx: HandlerContext) {
   const project = await guardProject(ctx);

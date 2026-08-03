@@ -340,7 +340,8 @@ export async function storeUserReport(projectId: number, payload: unknown): Prom
   await db
     .insert(userReports)
     .values({
-      eventId: r.event_id,
+      // normaliza hífens igual ao storeEvent (events.id não tem hífens)
+      eventId: r.event_id.replace(/-/g, ""),
       projectId,
       name: r.name ?? null,
       email: r.email ?? null,

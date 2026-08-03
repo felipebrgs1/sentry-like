@@ -24,6 +24,7 @@ import type {
   SentryEvent,
   SentryStackFrame,
   SentryTags,
+  UserReport,
 } from "@sentrylike/shared";
 import { api } from "../api";
 import { LevelBadge } from "../components/LevelBadge";
@@ -48,6 +49,38 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 function normalizeTags(tags: SentryTags | undefined): Array<[string, string]> {
   if (!tags) return [];
   return Array.isArray(tags) ? tags : Object.entries(tags);
+}
+
+/** Feedback dos usuários sobre os eventos desta issue (Fase 6). */
+function IssueFeedback({ issueId }: { issueId: number }) {
+  const { data } = useQuery({
+    queryKey: ["issue-reports", issueId],
+    queryFn: () => api<UserReport[]>(`/v1/issues/${issueId}/user-reports`),
+  });
+  if (!data?.length) return null;
+  return (
+    <Card>
+      <CardHeader className="py-3">
+        <CardTitle className="text-sm">Feedback dos usuários</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {data.map((r) => (
+          <div key={r.eventId} className="rounded-lg border bg-muted/30 p-3 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{r.name ?? "anônimo"}</span>
+              {r.email && (
+                <span className="font-mono text-xs text-muted-foreground">{r.email}</span>
+              )}
+              <span className="ml-auto font-mono text-xs text-muted-foreground">
+                {new Date(r.timestamp).toLocaleString("pt-BR")}
+              </span>
+            </div>
+            {r.comments && <p className="mt-1.5 text-foreground/85">{r.comments}</p>}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
 }
 
 /** Distribuição dos eventos da issue por ambiente ou release (Fase 3). */
@@ -500,6 +533,8 @@ export function IssueDetailPage() {
         <IssueDistribution title="Por ambiente" url={`/v1/issues/${id}/environments`} />
         <IssueDistribution title="Por release" url={`/v1/issues/${id}/releases`} />
       </div>
+
+      <IssueFeedback issueId={id} />
 
       <div className="grid gap-6 xl:grid-cols-[280px_1fr_280px]">
         <Card className="h-fit">

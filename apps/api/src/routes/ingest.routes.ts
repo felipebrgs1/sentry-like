@@ -8,4 +8,5 @@ import * as ingest from "../controllers/ingest.controller";
 export const ingestRoutes = new Elysia()
   .post("/api/:projectId/envelope/", (ctx) => ingest.envelope(ctx), { parse: "none" })
   .post("/api/:projectId/store/", (ctx) => ingest.store(ctx), { parse: "none" })
+  .post("/api/:projectId/user-feedback/", (ctx) => ingest.userFeedback(ctx), { parse: "none" })
   .post("/api/tunnel", (ctx) => ingest.tunnel(ctx), { parse: "none" });
