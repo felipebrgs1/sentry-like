@@ -218,7 +218,7 @@ export async function listIssueEvents(id: number): Promise<EventSummary[]> {
 
 export async function getEvent(
   id: string,
-): Promise<(EventSummary & { payload: string }) | undefined> {
+): Promise<(EventSummary & { payload: string; projectId: number }) | undefined> {
   return await db.select().from(events).where(eq(events.id, id)).get();
 }
 

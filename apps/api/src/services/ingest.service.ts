@@ -16,6 +16,7 @@ import { computeFingerprint } from "../lib/fingerprint";
 import { computePriority } from "../lib/priority";
 import { saveBlob } from "../lib/storage";
 import { fireIngestAlerts } from "./alert.service";
+import { symbolizeForGrouping } from "./sourcemap.service";
 import { MAX_ATTACHMENT_BYTES } from "../config";
 
 /** Sentry timestamps podem ser epoch seconds ou ISO string. Normaliza para ms. */
@@ -54,7 +55,10 @@ function eventCulprit(event: SentryEvent): string | null {
  * - ignored com janela expirada → reabre sem badge de regressão
  */
 export async function storeEvent(projectId: number, event: SentryEvent): Promise<string> {
-  const fingerprint = await computeFingerprint(event);
+  // Fase 8: se a release tem sourcemaps, o fingerprint usa os frames
+  // simbolizados — chunks minificados diferentes com a mesma origem agrupam
+  // na mesma issue ("frames similares"). Nunca quebra a ingestão.
+  const fingerprint = await computeFingerprint(await symbolizeForGrouping(projectId, event));
   const ts = normalizeTimestamp(event.timestamp);
   const now = Date.now();
   const title = eventTitle(event);

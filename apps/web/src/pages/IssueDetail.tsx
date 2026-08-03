@@ -156,23 +156,56 @@ function StackTrace({ frames }: { frames: SentryStackFrame[] }) {
       <CardContent className="divide-y p-0 text-sm">
         {ordered.map((f, i) => (
           <div key={i} className={`px-4 py-2.5 ${f.in_app ? "" : "opacity-70"}`}>
-            <div className="flex flex-wrap items-baseline gap-x-2">
-              <span className="font-mono font-medium text-foreground">
-                {f.function ?? "anonymous"}
-              </span>
-              <span className="font-mono text-xs text-muted-foreground">
-                {f.filename ?? f.abs_path ?? "?"}
-                {f.lineno != null && `:${f.lineno}`}
-                {f.colno != null && `:${f.colno}`}
-              </span>
-              {!f.in_app && <Badge variant="secondary">lib</Badge>}
-            </div>
-            {f.context_line && (
-              <pre className="mt-1.5 overflow-x-auto rounded border bg-muted/40 p-2 font-mono text-xs text-muted-foreground">
-                {f.pre_context?.map((l) => `  ${l}\n`).join("")}
-                {f.context_line}
-                {f.post_context?.map((l) => `\n  ${l}`).join("")}
-              </pre>
+            {f.symbolicated ? (
+              <>
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-mono font-medium text-foreground">
+                    {f.original_function ?? f.function ?? "anonymous"}
+                  </span>
+                  <span className="font-mono text-xs text-primary">
+                    {f.original_source ?? "?"}
+                    {f.original_lineno != null && `:${f.original_lineno}`}
+                    {f.original_colno != null && `:${f.original_colno}`}
+                  </span>
+                  <Badge variant="outline" className="border-primary/40 text-[10px]">
+                    original
+                  </Badge>
+                  {!f.in_app && <Badge variant="secondary">lib</Badge>}
+                </div>
+                {f.original_context_line != null && (
+                  <pre className="mt-1.5 overflow-x-auto rounded border bg-muted/40 p-2 font-mono text-xs text-muted-foreground">
+                    {f.original_pre_context?.map((l) => `  ${l}\n`).join("")}
+                    {f.original_context_line}
+                    {f.original_post_context?.map((l) => `\n  ${l}`).join("")}
+                  </pre>
+                )}
+                <p className="mt-1 font-mono text-[10px] text-muted-foreground/70">
+                  minificado: {f.filename ?? f.abs_path ?? "?"}
+                  {f.lineno != null && `:${f.lineno}`}
+                  {f.colno != null && `:${f.colno}`}
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-mono font-medium text-foreground">
+                    {f.function ?? "anonymous"}
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {f.filename ?? f.abs_path ?? "?"}
+                    {f.lineno != null && `:${f.lineno}`}
+                    {f.colno != null && `:${f.colno}`}
+                  </span>
+                  {!f.in_app && <Badge variant="secondary">lib</Badge>}
+                </div>
+                {f.context_line && (
+                  <pre className="mt-1.5 overflow-x-auto rounded border bg-muted/40 p-2 font-mono text-xs text-muted-foreground">
+                    {f.pre_context?.map((l) => `  ${l}\n`).join("")}
+                    {f.context_line}
+                    {f.post_context?.map((l) => `\n  ${l}`).join("")}
+                  </pre>
+                )}
+              </>
             )}
           </div>
         ))}

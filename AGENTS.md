@@ -23,7 +23,7 @@ apps/api/            # Backend Bun + Elysia (padrão MVC)
     controllers/     # lógica HTTP: parse, status codes, response (sem SQL)
     services/        # regras de negócio + queries Drizzle (sem HTTP)
     routes/          # só declaração: path + validação t.* + delega ao controller
-    lib/             # utilitários puros: envelope, fingerprint, ratelimit, storage, validate, timeseries
+    lib/             # utilitários puros: envelope, fingerprint, ratelimit, storage, validate, timeseries, sourcemap (VLQ)
     db/              # schema.ts (Drizzle) + index.ts (CREATE IF NOT EXISTS + ALTERs idempotentes)
 apps/web/            # React 19 + TanStack Router (code-based) + TanStack Query
   src/
@@ -85,6 +85,7 @@ Regras:
 - Origin check: `allowed_domains` do projeto (JSON array; suporta `*.domínio`); sem Origin ou lista vazia = liberado.
 - `sentry-trace` header → injetar em `contexts.trace` (pré-requisito da fase 4).
 - Blobs (attachments/replays) → `lib/storage.ts` (`DATA_DIR`); metadados no SQLite.
+- **Sourcemaps (Fase 8)**: `POST /v1/projects/:id/sourcemaps` (dashboard) ou protocolo do `sentry-cli` em `/api/0/organizations/:org/releases/:version/files/` (auth por API token — `X-Auth-Token` ou Bearer; **NÃO** key de DSN). `chunk-upload` retorna 404 de propósito para o sentry-cli cair no upload individual. Simbolização acontece na LEITURA (`/v1/events/:id`) e no fingerprint da ingestão (quando a release tem sourcemaps).
 
 ## 6. Frontend
 

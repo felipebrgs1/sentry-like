@@ -1,6 +1,7 @@
 import type { HandlerContext } from "./types";
-import type { IssueStatus } from "@sentrylike/shared";
+import type { IssueStatus, SentryEvent } from "@sentrylike/shared";
 import * as issueService from "../services/issue.service";
+import { symbolizeEvent } from "../services/sourcemap.service";
 
 const VALID_STATUSES: IssueStatus[] = ["unresolved", "resolved", "ignored"];
 
@@ -24,14 +25,17 @@ export async function events({ params }: Pick<HandlerContext, "params">) {
   return issueService.listIssueEvents(Number(params.id));
 }
 
-/** GET /v1/events/:id — evento completo com payload parseado */
+/** GET /v1/events/:id — evento completo com payload parseado e simbolizado (Fase 8) */
 export async function eventDetail({ params, set }: Pick<HandlerContext, "params" | "set">) {
   const row = await issueService.getEvent(params.id);
   if (!row) {
     set.status = 404;
     return { error: "not found" };
   }
-  return { ...row, payload: JSON.parse(row.payload) };
+  const payload = JSON.parse(row.payload) as SentryEvent;
+  // aplica sourcemaps da release do evento (se houver) — o payload gravado não muda
+  const symbolized = await symbolizeEvent(row.projectId, payload.release ?? null, payload);
+  return { ...row, payload: symbolized };
 }
 
 /** GET /v1/issues/:id/stats — eventos por dia (gráfico) */

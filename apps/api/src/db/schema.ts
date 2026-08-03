@@ -315,3 +315,28 @@ export const events = sqliteTable(
     index("events_original_issue").on(t.originalIssueId),
   ],
 );
+
+// Fase 8 — Sourcemaps: artefatos enviados por release (sentry-cli / dashboard)
+// O conteúdo vai para o BlobStore (disco/R2); aqui ficam só os metadados.
+export const sourcemapFiles = sqliteTable(
+  "sourcemap_files",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id),
+    release: text("release").notNull(),
+    name: text("name").notNull(),
+    dist: text("dist"),
+    sha1: text("sha1").notNull(),
+    size: integer("size").notNull(),
+    contentType: text("content_type"),
+    isSourcemap: integer("is_sourcemap").notNull().default(0),
+    storedPath: text("stored_path").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("sourcemap_files_project_release_name").on(t.projectId, t.release, t.name),
+    index("sourcemap_files_project").on(t.projectId),
+  ],
+);

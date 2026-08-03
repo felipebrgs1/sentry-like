@@ -26,6 +26,7 @@
 | Auth single-user com sessão                                            | ✅     |
 | Deploy: 1 container, SQLite, retenção                                  | ✅     |
 | Performance: transactions/spans, waterfall, p50/p95/p99, web vitals, release-perf | ✅ |
+| Sourcemaps: upload (sentry-cli + dashboard), simbolização, frames similares, contexto | ✅ |
 
 ---
 
@@ -95,12 +96,14 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 - [x] **API tokens** — Bearer para automação (CI, upload de sourcemap), com revogação e lastUsedAt
 - [x] **2FA** — TOTP (RFC 6238, HMAC-SHA1 via Web Crypto) com URI otpauth, confirmação e exigência no login
 
-## Fase 8 — Sourcemaps & simbolização 🧪 (o item mais difícil)
+## Fase 8 — Sourcemaps & simbolização ✅
 
-- [ ] **Upload de sourcemaps** — endpoint `/api/:id/sourcemaps/` (SDK `sentry-cli` compatível)
-- [ ] **Resolução** — mapa de versões de arquivo por release, aplicar no stacktrace ao exibir
-- [ ] **Frames "similares"** — agrupamento por frames agrupados do bundler (webpack/rollup `webpack://`)
-- [ ] **Contexto do código** — mostrar o código-fonte real (hoje: linha enviada pelo SDK)
+O item mais difícil do roadmap — resolvido com um parser de sourcemap v3 (VLQ) sem dependências, rodando em Bun/Workers.
+
+- [x] **Upload de sourcemaps** — dois caminhos: protocolo do `sentry-cli` (`/api/0/organizations/:org/releases/:version/files/`, `/api/0/projects/:org/:project/releases/:version/files/`, DELETE por URL) com auth por API token (`X-Auth-Token`/Bearer) e org slug; e dashboard (`/v1/projects/:id/sourcemaps`) com upload por base64; `chunk-upload` responde 404 de propósito → sentry-cli cai no upload individual (VPS micro, sem bucket de chunks)
+- [x] **Resolução** — artefatos por (project, release, nome) em `sourcemap_files` (conteúdo no BlobStore); lookup no stacktrace tenta: artefato-fonte → comentário `sourceMappingURL` → map relativo; `nome.map` direto; normaliza `~/`, URLs completas e query/hash; cache LRU em memória (mapas decodificados, até 32 entradas)
+- [x] **Frames "similares"** — na ingestão, se a release tem sourcemaps, o fingerprint usa os frames simbolizados: chunks minificados diferentes com a mesma origem agrupam na mesma issue (validado: `app.js` e `app.js?v=2` → 1 issue)
+- [x] **Contexto do código** — `sourcesContent` do map exibido no detalhe da issue (badge "original" + linha/coluna/função originais + código-fonte real; a linha minificada fica como secundária)
 
 ## Fase 9 — Replays & cobertura 🧪
 
@@ -149,5 +152,6 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 
 1. **Fase 1 antes de tudo** — ingestão correta é o que mantém os SDKs funcionando.
 2. **Fase 2 antes da 4** — ninguém liga pra performance se as issues estão bagunçadas.
-3. **Sourcemaps (F8) só depois de performance (F4)** — ambos competem por tempo, sourcemaps valem mais quando o produto é usado em produção com bundlers.
+3. **Sourcemaps (F8) antes do replay (F9)** — sourcemaps valem mais quando o produto é usado em produção com bundlers; replay é o item mais pesado do roadmap.
 4. **Cada fase deve terminar deployável** — nada de quebrar o `docker compose up` no meio do caminho.
+5. **F9 (replay) é o próximo** — a ingestão de items `replay` e o armazenamento em disco já existem (F1); falta o player básico e a UI de listagem.

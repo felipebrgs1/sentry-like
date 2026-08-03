@@ -194,6 +194,21 @@ const CREATE_STATEMENTS = [
     created_at INTEGER NOT NULL
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS releases_project_name ON releases(project_id, name)`,
+  `CREATE TABLE IF NOT EXISTS sourcemap_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    release TEXT NOT NULL,
+    name TEXT NOT NULL,
+    dist TEXT,
+    sha1 TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    content_type TEXT,
+    is_sourcemap INTEGER NOT NULL DEFAULT 0,
+    stored_path TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS sourcemap_files_project_release_name ON sourcemap_files(project_id, release, name)`,
+  `CREATE INDEX IF NOT EXISTS sourcemap_files_project ON sourcemap_files(project_id)`,
   `CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT NOT NULL UNIQUE,

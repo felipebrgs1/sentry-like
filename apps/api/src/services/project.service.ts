@@ -12,10 +12,12 @@ import {
   replays,
   savedSearches,
   sentrySessions,
+  sourcemapFiles,
   spans,
   transactions,
   userReports,
 } from "../db/schema";
+import { deleteBlob } from "../lib/storage";
 
 export function buildDsn(origin: string, publicKey: string, projectId: number): string {
   return `${origin.replace("://", `://${publicKey}@`)}/${projectId}`;
@@ -99,6 +101,14 @@ export async function deleteProject(id: number): Promise<boolean> {
   await db.delete(sentrySessions).where(eq(sentrySessions.projectId, id)).run();
   await db.delete(events).where(eq(events.projectId, id)).run();
   await db.delete(issues).where(eq(issues.projectId, id)).run();
+  // Fase 8: sourcemaps (metadados + blobs em disco)
+  const smaps = await db
+    .select()
+    .from(sourcemapFiles)
+    .where(eq(sourcemapFiles.projectId, id))
+    .all();
+  for (const s of smaps) await deleteBlob(s.storedPath).catch(() => {});
+  await db.delete(sourcemapFiles).where(eq(sourcemapFiles.projectId, id)).run();
   await db.delete(projects).where(eq(projects.id, id)).run();
   return true;
 }

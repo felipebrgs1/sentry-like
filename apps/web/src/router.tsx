@@ -14,6 +14,7 @@ import { ProjectIssuesPage } from "./pages/ProjectIssues";
 import { PerformancePage } from "./pages/Performance";
 import { PerformanceGlobalPage } from "./pages/PerformanceGlobal";
 import { ProjectAlertsPage } from "./pages/ProjectAlerts";
+import { ProjectSourcemapsPage } from "./pages/ProjectSourcemaps";
 import { ReleasesPage } from "./pages/Releases";
 import { SettingsPage } from "./pages/Settings";
 import { IssueDetailPage } from "./pages/IssueDetail";
@@ -88,6 +89,12 @@ const projectReleasesRoute = createRoute({
   component: ReleasesPage,
 });
 
+const projectSourcemapsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/projects/$projectId/sourcemaps",
+  component: ProjectSourcemapsPage,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings",
@@ -110,6 +117,7 @@ const routeTree = rootRoute.addChildren([
     projectPerformanceRoute,
     projectAlertsRoute,
     projectReleasesRoute,
+    projectSourcemapsRoute,
     settingsRoute,
     issueRoute,
   ]),

@@ -14,6 +14,17 @@ export interface SentryStackFrame {
   pre_context?: string[];
   post_context?: string[];
   vars?: Record<string, unknown>;
+  // Fase 8 — simbolização via sourcemap (preenchida pelo servidor no detalhe).
+  // Os campos originais continuam sendo o que o SDK enviou (minificado);
+  // `original_*` é a posição no código-fonte real após aplicar o map.
+  symbolicated?: boolean;
+  original_function?: string;
+  original_lineno?: number;
+  original_colno?: number;
+  original_source?: string;
+  original_context_line?: string;
+  original_pre_context?: string[];
+  original_post_context?: string[];
 }
 
 export interface SentryExceptionValue {
@@ -168,6 +179,32 @@ export interface EventDetail extends EventSummary {
 export interface DayCount {
   date: string;
   count: number;
+}
+
+// ------------------------------------------------------------------
+// Sourcemaps (Fase 8)
+// ------------------------------------------------------------------
+
+export interface SourcemapFile {
+  id: number;
+  projectId: number;
+  release: string;
+  name: string; // artifact name (ex.: dist/app.js, dist/app.js.map)
+  dist: string | null;
+  sha1: string;
+  size: number;
+  contentType: string | null;
+  /** true quando o conteúdo é um sourcemap (nome .map ou JSON de map). */
+  isSourcemap: boolean;
+  createdAt: number;
+}
+
+export interface SourcemapRelease {
+  release: string;
+  fileCount: number;
+  mapCount: number;
+  totalBytes: number;
+  lastUploadAt: number;
 }
 
 export interface ProjectStat {
