@@ -4,12 +4,12 @@ import * as project from "../controllers/project.controller";
 
 export const projectRoutes = new Elysia({ prefix: "/v1" })
   .onBeforeHandle(authGuard)
-  .get("/projects", project.list)
-  .post("/projects", project.create, {
+  .get("/projects", ({ request }) => project.list({ request }))
+  .post("/projects", ({ body }) => project.create({ body }), {
     body: t.Object({ name: t.String({ minLength: 1, maxLength: 120 }) }),
   })
-  .get("/projects/:id", project.get)
-  .get("/projects/:id/issues", project.issues, {
+  .get("/projects/:id", ({ params, request, set }) => project.get({ params, request, set }))
+  .get("/projects/:id/issues", ({ params, query }) => project.issues({ params, query }), {
     query: t.Object({
       status: t.Optional(t.String()),
       q: t.Optional(t.String()),
@@ -18,10 +18,10 @@ export const projectRoutes = new Elysia({ prefix: "/v1" })
       release: t.Optional(t.String()),
     }),
   })
-  .get("/projects/:id/environments", project.environments)
-  .get("/projects/:id/releases", project.releases)
-  .patch("/projects/:id", project.update, {
+  .get("/projects/:id/environments", ({ params }) => project.environments({ params }))
+  .get("/projects/:id/releases", ({ params }) => project.releases({ params }))
+  .patch("/projects/:id", ({ params, body, set }) => project.update({ params, body, set }), {
     body: t.Object({ name: t.String({ minLength: 1, maxLength: 120 }) }),
   })
-  .post("/projects/:id/rotate-key", project.rotateKey)
-  .delete("/projects/:id", project.remove);
+  .post("/projects/:id/rotate-key", ({ params, set }) => project.rotateKey({ params, set }))
+  .delete("/projects/:id", ({ params, set }) => project.remove({ params, set }));

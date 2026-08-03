@@ -1,11 +1,7 @@
 import { Outlet } from "@tanstack/react-router";
 import { Bug } from "lucide-react";
 import { AppSidebar } from "@/components/AppSidebar";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
 

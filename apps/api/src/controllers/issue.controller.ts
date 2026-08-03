@@ -6,10 +6,7 @@ const VALID_STATUSES: IssueStatus[] = ["unresolved", "resolved", "ignored"];
 
 /** GET /v1/issues — recentes (todos os projetos) */
 export function recent({ query }: Pick<HandlerContext, "query">) {
-  return issueService.recentIssues(
-    query?.status,
-    Math.min(Number(query?.limit ?? 10), 50),
-  );
+  return issueService.recentIssues(query?.status, Math.min(Number(query?.limit ?? 10), 50));
 }
 
 /** GET /v1/issues/:id */
@@ -43,7 +40,11 @@ export function stats({ params }: Pick<HandlerContext, "params">) {
 }
 
 /** POST /v1/issues/:id/status */
-export function updateStatus({ params, body, set }: HandlerContext) {
+export function updateStatus({
+  params,
+  body,
+  set,
+}: Pick<HandlerContext, "params" | "body" | "set">) {
   const status = (body as { status?: string } | undefined)?.status;
   if (!status || !VALID_STATUSES.includes(status as IssueStatus)) {
     set.status = 400;

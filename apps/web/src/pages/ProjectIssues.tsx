@@ -65,8 +65,11 @@ function ProjectSettings({
   const [open, setOpen] = useState(false);
 
   const rename = useMutation({
-    mutationFn: (name: string) =>
-      api(`/v1/projects/${project.id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+    mutationFn: (newName: string) =>
+      api(`/v1/projects/${project.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: newName }),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["projects"] });
       qc.invalidateQueries({ queryKey: ["project", String(project.id)] });
@@ -75,7 +78,8 @@ function ProjectSettings({
   });
 
   const rotate = useMutation({
-    mutationFn: () => api<{ publicKey: string }>(`/v1/projects/${project.id}/rotate-key`, { method: "POST" }),
+    mutationFn: () =>
+      api<{ publicKey: string }>(`/v1/projects/${project.id}/rotate-key`, { method: "POST" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["projects"] });
       qc.invalidateQueries({ queryKey: ["project", String(project.id)] });
@@ -94,7 +98,12 @@ function ProjectSettings({
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <Button variant="ghost" size="icon" title="Configurações do projeto" onClick={() => setOpen(true)}>
+      <Button
+        variant="ghost"
+        size="icon"
+        title="Configurações do projeto"
+        onClick={() => setOpen(true)}
+      >
         <Settings className="size-4" />
       </Button>
       <SheetContent>
@@ -131,7 +140,11 @@ function ProjectSettings({
               size="sm"
               disabled={rotate.isPending}
               onClick={() => {
-                if (confirm("Rotacionar a chave? SDKs configurados com a chave antiga vão parar de funcionar.")) {
+                if (
+                  confirm(
+                    "Rotacionar a chave? SDKs configurados com a chave antiga vão parar de funcionar.",
+                  )
+                ) {
                   rotate.mutate();
                 }
               }}
@@ -324,21 +337,25 @@ export function ProjectIssuesPage() {
                         >
                           {issue.title}
                         </Link>
-                        {issue.status === "unresolved" && Date.now() - issue.firstSeen < NEW_WINDOW_MS && (
-                          <Badge
-                            variant="outline"
-                            className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
-                          >
-                            novo
-                          </Badge>
-                        )}
+                        {issue.status === "unresolved" &&
+                          Date.now() - issue.firstSeen < NEW_WINDOW_MS && (
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                            >
+                              novo
+                            </Badge>
+                          )}
                         {issue.environment && (
                           <Badge variant="outline" className="font-mono text-[10px]">
                             {issue.environment}
                           </Badge>
                         )}
                         {issue.release && (
-                          <Badge variant="outline" className="hidden items-center gap-1 font-mono text-[10px] lg:inline-flex">
+                          <Badge
+                            variant="outline"
+                            className="hidden items-center gap-1 font-mono text-[10px] lg:inline-flex"
+                          >
                             <Package className="size-2.5" />
                             {issue.release}
                           </Badge>

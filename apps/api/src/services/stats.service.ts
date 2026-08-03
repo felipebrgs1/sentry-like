@@ -1,22 +1,25 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { eq, gt, sql } from "drizzle-orm";
 import type { OverviewStats } from "@sentrylike/shared";
 import { db } from "../db";
 import { events, issues } from "../db/schema";
 import { fillDays } from "../lib/timeseries";
-import {
-  listProjects,
-  projectEventsCountSince,
-  projectOpenIssueCount,
-} from "./project.service";
+import { listProjects, projectEventsCountSince, projectOpenIssueCount } from "./project.service";
+
+function countEvents(cond: any) {
+  return (
+    db
+      .select({ c: sql<number>`count(*)` })
+      .from(events)
+      .where(cond)
+      .get()?.c ?? 0
+  );
+}
 
 export function overview(): OverviewStats {
   const now = Date.now();
   const d24 = now - 24 * 3600 * 1000;
   const d7 = now - 7 * 24 * 3600 * 1000;
   const d14 = now - 14 * 24 * 3600 * 1000;
-
-  const countEvents = (cond: any) =>
-    db.select({ c: sql<number>`count(*)` }).from(events).where(cond).get()?.c ?? 0;
 
   const openIssues =
     db

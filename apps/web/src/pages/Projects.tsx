@@ -1,18 +1,12 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Plus, RefreshCw } from "lucide-react";
+import { Copy, Plus } from "lucide-react";
 import type { ProjectWithStats } from "@sentrylike/shared";
 import { api } from "../api";
 import { timeAgo } from "../lib/format";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -36,8 +30,8 @@ export function ProjectsPage() {
   });
 
   const create = useMutation({
-    mutationFn: (name: string) =>
-      api("/v1/projects", { method: "POST", body: JSON.stringify({ name }) }),
+    mutationFn: (newName: string) =>
+      api("/v1/projects", { method: "POST", body: JSON.stringify({ name: newName }) }),
     onSuccess: () => {
       setName("");
       qc.invalidateQueries({ queryKey: ["projects"] });

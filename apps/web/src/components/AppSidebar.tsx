@@ -14,7 +14,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
 } from "@/components/ui/sidebar";
 
 export function AppSidebar() {
@@ -57,10 +56,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link to="/" />}
-                  isActive={pathname === "/"}
-                >
+                <SidebarMenuButton render={<Link to="/" />} isActive={pathname === "/"}>
                   <ChartNoAxesColumn />
                   <span>Visão geral</span>
                 </SidebarMenuButton>
@@ -85,9 +81,7 @@ export function AppSidebar() {
               {projects?.map((p) => (
                 <SidebarMenuItem key={p.id}>
                   <SidebarMenuButton
-                    render={
-                      <Link to="/projects/$projectId" params={{ projectId: String(p.id) }} />
-                    }
+                    render={<Link to="/projects/$projectId" params={{ projectId: String(p.id) }} />}
                     isActive={pathname.startsWith(`/projects/${p.id}`)}
                   >
                     <FolderKanban />

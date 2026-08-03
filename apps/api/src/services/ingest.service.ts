@@ -17,7 +17,10 @@ function normalizeTimestamp(ts: SentryEvent["timestamp"]): number {
 function eventTitle(event: SentryEvent): string {
   const exc = event.exception?.values?.[0];
   if (exc) return `${exc.type ?? "Error"}: ${exc.value ?? ""}`.trim().slice(0, 500) || "Error";
-  return (event.message ?? event.logentry?.formatted ?? event.transaction ?? "Unknown event").slice(0, 500);
+  return (event.message ?? event.logentry?.formatted ?? event.transaction ?? "Unknown event").slice(
+    0,
+    500,
+  );
 }
 
 function eventCulprit(event: SentryEvent): string | null {

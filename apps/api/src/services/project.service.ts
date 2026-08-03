@@ -44,27 +44,33 @@ export function deleteProject(id: number): boolean {
 }
 
 export function projectIssueCount(id: number): number {
-  return db
-    .select({ c: sql<number>`count(*)` })
-    .from(issues)
-    .where(eq(issues.projectId, id))
-    .get()?.c ?? 0;
+  return (
+    db
+      .select({ c: sql<number>`count(*)` })
+      .from(issues)
+      .where(eq(issues.projectId, id))
+      .get()?.c ?? 0
+  );
 }
 
 export function projectOpenIssueCount(id: number): number {
-  return db
-    .select({ c: sql<number>`count(*)` })
-    .from(issues)
-    .where(and(eq(issues.projectId, id), eq(issues.status, "unresolved")))
-    .get()?.c ?? 0;
+  return (
+    db
+      .select({ c: sql<number>`count(*)` })
+      .from(issues)
+      .where(and(eq(issues.projectId, id), eq(issues.status, "unresolved")))
+      .get()?.c ?? 0
+  );
 }
 
 export function projectEventsCountSince(id: number, since: number): number {
-  return db
-    .select({ c: sql<number>`count(*)` })
-    .from(events)
-    .where(and(eq(events.projectId, id), gt(events.timestamp, since)))
-    .get()?.c ?? 0;
+  return (
+    db
+      .select({ c: sql<number>`count(*)` })
+      .from(events)
+      .where(and(eq(events.projectId, id), gt(events.timestamp, since)))
+      .get()?.c ?? 0
+  );
 }
 
 export function projectEnvironments(id: number): string[] {

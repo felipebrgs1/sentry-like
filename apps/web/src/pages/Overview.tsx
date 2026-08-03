@@ -89,12 +89,12 @@ export function OverviewPage() {
           icon={TriangleAlert}
           hint="não resolvidas"
         />
+        <StatCard label="Eventos nas últimas 24h" value={stats?.events24h ?? 0} icon={Zap} />
         <StatCard
-          label="Eventos nas últimas 24h"
-          value={stats?.events24h ?? 0}
-          icon={Zap}
+          label="Eventos nos últimos 7 dias"
+          value={stats?.events7d ?? 0}
+          icon={ChartNoAxesColumn}
         />
-        <StatCard label="Eventos nos últimos 7 dias" value={stats?.events7d ?? 0} icon={ChartNoAxesColumn} />
         <StatCard label="Projetos" value={projects?.length ?? 0} icon={FolderKanban} />
       </div>
 
@@ -105,11 +105,7 @@ export function OverviewPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-2">
-          {stats ? (
-            <BarChart data={stats.eventsPerDay} />
-          ) : (
-            <Skeleton className="h-36 w-full" />
-          )}
+          {stats ? <BarChart data={stats.eventsPerDay} /> : <Skeleton className="h-36 w-full" />}
         </CardContent>
       </Card>
 

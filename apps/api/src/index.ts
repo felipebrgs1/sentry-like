@@ -21,13 +21,10 @@ if (PASSWORD_WAS_GENERATED) {
 }
 
 // Retenção: apaga eventos antigos a cada hora
-setInterval(
-  () => {
-    const cutoff = Date.now() - RETENTION_DAYS * 86400_000;
-    db.run(sql`DELETE FROM events WHERE timestamp < ${cutoff}`);
-  },
-  3600_000,
-).unref();
+setInterval(() => {
+  const cutoff = Date.now() - RETENTION_DAYS * 86400_000;
+  db.run(sql`DELETE FROM events WHERE timestamp < ${cutoff}`);
+}, 3600_000).unref();
 
 // --- static dashboard (build de produção) ---
 const WEB_DIR = process.env.WEB_DIR ?? join(import.meta.dir, "../../web/dist");
@@ -79,7 +76,8 @@ const app = new Elysia()
     return new Response(file, {
       headers: { "content-type": MIME[ext] ?? "application/octet-stream" },
     });
-  })
-  .listen(PORT);
+  });
+
+app.listen(PORT);
 
 console.log(`[sentrylike] listening on http://localhost:${PORT}`);

@@ -6,5 +6,5 @@ import * as ingest from "../controllers/ingest.controller";
  * parse: "none" mantém o body como stream cru; o controller faz o parse.
  */
 export const ingestRoutes = new Elysia()
-  .post("/api/:projectId/envelope/", ingest.envelope, { parse: "none" })
-  .post("/api/:projectId/store/", ingest.store, { parse: "none" });
+  .post("/api/:projectId/envelope/", (ctx) => ingest.envelope(ctx), { parse: "none" })
+  .post("/api/:projectId/store/", (ctx) => ingest.store(ctx), { parse: "none" });

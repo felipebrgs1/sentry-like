@@ -96,7 +96,7 @@ export function listIssueEvents(id: number): EventSummary[] {
     .all();
 }
 
-export function getEvent(id: string): EventSummary & { payload: string } | undefined {
+export function getEvent(id: string): (EventSummary & { payload: string }) | undefined {
   return db.select().from(events).where(eq(events.id, id)).get();
 }
 

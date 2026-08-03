@@ -8,7 +8,27 @@ Uma VPS micro com 512MB de RAM roda isso tranquilo.
 - **Monorepo**: Turborepo (tasks) + workspaces (link de pacotes)
 - **API**: Bun + Elysia, SQLite (`bun:sqlite` + Drizzle) — ingestão síncrona, sem fila
 - **Web**: React 19 + TanStack Router/Query + Tailwind v4
+- **Qualidade**: oxlint (lint) + oxfmt (format) — default no CLI e no editor
 - **Deploy**: 1 Dockerfile. Build do front é servido pela própria API.
+
+## Ferramentas (oxlint + oxfmt)
+
+Lint e formatador do projeto Oxc — nativos, rápidos e o default em todo o código
+(back e front).
+
+```bash
+bun run lint          # oxlint em todo o monorepo
+bun run format        # formata tudo (apps, packages, scripts)
+bun run format:check  # verifica se está formatado (CI)
+
+# por app (via turbo)
+bunx turbo lint
+bunx turbo format:check
+```
+
+Configurações: `.oxlintrc.json` (lint) e `.oxfmtrc.json` (format). No editor,
+instale a extensão **oxc.oxc-vscode** — o `.vscode/settings.json` já configura
+oxfmt como formatador padrão (format on save) e oxlint no save.
 
 ## Como funciona a compatibilidade com Sentry
 
@@ -65,14 +85,14 @@ Sentry.init({ dsn: "https://<public_key>@errors.seudominio.com/1" });
 
 ## Config
 
-| Env                 | Default              | Descrição                                |
-| ------------------- | -------------------- | ---------------------------------------- |
-| `PORT`              | `3000`               | Porta da API                             |
-| `ADMIN_USER`        | `admin`              | Usuário do dashboard                     |
-| `ADMIN_PASSWORD`    | gerada (ver logs)    | Senha do dashboard                       |
-| `DATABASE_PATH`     | `sentrylike.db`      | Caminho do SQLite (`/data/...` no Docker) |
-| `RETENTION_DAYS`    | `30`                 | Apaga eventos mais velhos que N dias     |
-| `MAX_ENVELOPE_BYTES`| `10485760`           | Tamanho máx. de um envelope (10MB)       |
+| Env                  | Default           | Descrição                                 |
+| -------------------- | ----------------- | ----------------------------------------- |
+| `PORT`               | `3000`            | Porta da API                              |
+| `ADMIN_USER`         | `admin`           | Usuário do dashboard                      |
+| `ADMIN_PASSWORD`     | gerada (ver logs) | Senha do dashboard                        |
+| `DATABASE_PATH`      | `sentrylike.db`   | Caminho do SQLite (`/data/...` no Docker) |
+| `RETENTION_DAYS`     | `30`              | Apaga eventos mais velhos que N dias      |
+| `MAX_ENVELOPE_BYTES` | `10485760`        | Tamanho máx. de um envelope (10MB)        |
 
 ## Limitações conhecidas / roadmap
 

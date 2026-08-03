@@ -1,14 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Ban,
-  CircleCheckBig,
-  CircleDot,
-  Copy,
-  History,
-  Trash2,
-} from "lucide-react";
+import { Ban, CircleCheckBig, CircleDot, Copy, History, Trash2 } from "lucide-react";
 import type {
   DayCount,
   EventDetail,
@@ -26,12 +19,7 @@ import { BarChart } from "../components/BarChart";
 import { fmtTime, timeAgo } from "../lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -72,7 +60,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 function StackTrace({ frames }: { frames: SentryStackFrame[] }) {
   // Sentry frames arrive oldest-first; display most recent call first
-  const ordered = [...frames].reverse();
+  const ordered = [...frames].toReversed();
   return (
     <Card>
       <CardHeader className="py-3">
@@ -134,7 +122,6 @@ function EventView({ event }: { event: EventDetail }) {
   const p = event.payload;
   const exceptions = p.exception?.values ?? [];
   const breadcrumbs = normalizeBreadcrumbs(p.breadcrumbs);
-  const tags = normalizeTags(p.tags);
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState("resumo");
 
@@ -149,8 +136,16 @@ function EventView({ event }: { event: EventDetail }) {
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="text-muted-foreground">event id</span>
         <code className="rounded border bg-muted/40 px-1.5 py-0.5 font-mono">{event.id}</code>
-        <button onClick={copyId} className="text-muted-foreground hover:text-foreground" title="copiar">
-          {copied ? <span className="text-emerald-400">copiado</span> : <Copy className="size-3.5" />}
+        <button
+          onClick={copyId}
+          className="text-muted-foreground hover:text-foreground"
+          title="copiar"
+        >
+          {copied ? (
+            <span className="text-emerald-400">copiado</span>
+          ) : (
+            <Copy className="size-3.5" />
+          )}
         </button>
       </div>
 
@@ -168,7 +163,9 @@ function EventView({ event }: { event: EventDetail }) {
                 </span>
                 {exc.value && <span className="ml-2 text-sm text-foreground/80">{exc.value}</span>}
               </div>
-              {exc.stacktrace?.frames?.length ? <StackTrace frames={exc.stacktrace.frames} /> : null}
+              {exc.stacktrace?.frames?.length ? (
+                <StackTrace frames={exc.stacktrace.frames} />
+              ) : null}
             </div>
           ))}
 
@@ -254,7 +251,8 @@ export function IssueDetailPage() {
     mutationFn: () => api(`/v1/issues/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidate();
-      if (issue) navigate({ to: "/projects/$projectId", params: { projectId: String(issue.projectId) } });
+      if (issue)
+        navigate({ to: "/projects/$projectId", params: { projectId: String(issue.projectId) } });
     },
   });
 
@@ -308,7 +306,9 @@ export function IssueDetailPage() {
           <Button
             variant={issue.status === "unresolved" ? "default" : "outline"}
             size="sm"
-            onClick={() => setStatus.mutate(issue.status === "unresolved" ? "resolved" : "unresolved")}
+            onClick={() =>
+              setStatus.mutate(issue.status === "unresolved" ? "resolved" : "unresolved")
+            }
             disabled={setStatus.isPending}
           >
             {issue.status === "unresolved" ? (
@@ -420,7 +420,10 @@ export function IssueDetailPage() {
               <DetailRow label="ambiente" value={issue.environment ?? ""} />
               <DetailRow label="release" value={payload?.release ?? ""} />
               <DetailRow label="plataforma" value={payload?.platform ?? ""} />
-              <DetailRow label="sdk" value={payload?.sdk?.name ? `${payload.sdk.name}@${payload.sdk.version ?? ""}` : ""} />
+              <DetailRow
+                label="sdk"
+                value={payload?.sdk?.name ? `${payload.sdk.name}@${payload.sdk.version ?? ""}` : ""}
+              />
               <DetailRow label="fingerprint" value={issue.fingerprint.slice(0, 16) + "…"} />
             </CardContent>
           </Card>

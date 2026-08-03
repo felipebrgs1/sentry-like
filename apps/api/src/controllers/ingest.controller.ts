@@ -69,7 +69,9 @@ export async function envelope({ params, request, body, set }: HandlerContext) {
     const { items } = parseEnvelope(raw);
     for (const item of items) {
       if (item.header.type !== "event") continue; // attachments/sessions/etc: ignora
-      const event = JSON.parse(new TextDecoder().decode(item.payload)) as Parameters<typeof storeEvent>[1];
+      const event = JSON.parse(new TextDecoder().decode(item.payload)) as Parameters<
+        typeof storeEvent
+      >[1];
       lastEventId = storeEvent(project.id, event);
     }
   } catch {
