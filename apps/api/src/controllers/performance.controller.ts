@@ -9,6 +9,12 @@ function filters(query?: Record<string, string | undefined>) {
   };
 }
 
+/** GET /v1/performance/summaries — rotas de todos os projetos */
+export function global({ query }: Pick<HandlerContext, "query">) {
+  const days = Math.min(Math.max(Number(query?.days ?? 7), 1), 90);
+  return perfService.globalSummaries(days);
+}
+
 /** GET /v1/projects/:id/transaction-summaries */
 export function summaries({ params, query }: Pick<HandlerContext, "params" | "query">) {
   return perfService.transactionSummaries(Number(params.id), filters(query));

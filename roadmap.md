@@ -14,7 +14,8 @@
 | Grouping por fingerprint (tipo + frames in-app)                        | ✅     |
 | Issues: resolved/ignored, environment, release, counts                 | ✅     |
 | Rate limiting com `X-Sentry-Rate-Limits`                               | ✅     |
-| Dashboard (stats, gráfico 14d, recentes)                               | ✅     |
+| Dashboard (stats, gráfico 14d, recentes, resumo de performance, top rotas) | ✅     |
+| Performance: página global + por projeto, waterfall, p50/p95/p99, web vitals | ✅     |
 | Busca/filtros de issues (título, nível, ambiente, release)             | ✅     |
 | Detalhe: stacktrace, breadcrumbs, tags, contexts, JSON raw, frequência | ✅     |
 | Fase 2 completa: fingerprint custom, ignore com janela, regressão, merge, lote, prioridade, search salva, cursor, unread, owner | ✅ |

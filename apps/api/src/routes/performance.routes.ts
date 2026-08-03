@@ -4,6 +4,9 @@ import * as perf from "../controllers/performance.controller";
 
 export const performanceRoutes = new Elysia({ prefix: "/v1" })
   .onBeforeHandle(authGuard)
+  .get("/performance/summaries", ({ query }) => perf.global({ query }), {
+    query: t.Object({ days: t.Optional(t.String()) }),
+  })
   .get(
     "/projects/:id/transaction-summaries",
     ({ params, query }) => perf.summaries({ params, query }),

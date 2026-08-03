@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bug, ChartNoAxesColumn, FolderKanban, LayoutGrid, LogOut } from "lucide-react";
+import { Bug, ChartNoAxesColumn, FolderKanban, Gauge, LayoutGrid, LogOut } from "lucide-react";
 import type { ProjectWithStats } from "@sentrylike/shared";
 import { api, logout } from "@/api";
 import {
@@ -68,6 +68,15 @@ export function AppSidebar() {
                 >
                   <LayoutGrid />
                   <span>Projetos</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link to="/performance" />}
+                  isActive={pathname.startsWith("/performance")}
+                >
+                  <Gauge />
+                  <span>Performance</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

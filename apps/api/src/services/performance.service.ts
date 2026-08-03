@@ -9,7 +9,7 @@ import type {
   VitalsMap,
 } from "@sentrylike/shared";
 import { db } from "../db";
-import { spans, transactions } from "../db/schema";
+import { projects, spans, transactions } from "../db/schema";
 
 // ------------------------------------------------------------------
 // helpers
@@ -42,12 +42,12 @@ function rowToTransaction(r: typeof transactions.$inferSelect): Transaction {
   };
 }
 
-export interface PerfFilters {
+export type PerfFilters = {
   release?: string;
   env?: string;
   q?: string;
   days?: number;
-}
+};
 
 function perfConds(projectId: number, f: PerfFilters) {
   const conds = [eq(transactions.projectId, projectId)];
@@ -194,6 +194,72 @@ export function getTransaction(id: string): TransactionDetail | undefined {
 // ------------------------------------------------------------------
 // métricas agregadas
 // ------------------------------------------------------------------
+
+/** Resumo global: rotas de todos os projetos (janela de 7 dias). */
+export function globalSummaries(days = 7): TransactionSummary[] {
+  const since = Date.now() - days * 24 * 3600_000;
+  const projectNames = new Map(
+    db
+      .select()
+      .from(projects)
+      .all()
+      .map((p) => [p.id, p.name]),
+  );
+  const rows = db
+    .select({
+      projectId: transactions.projectId,
+      name: transactions.name,
+      timestamp: transactions.timestamp,
+      duration: transactions.duration,
+      status: transactions.status,
+    })
+    .from(transactions)
+    .where(gt(transactions.timestamp, since))
+    .all();
+
+  const groups = new Map<
+    string,
+    { durations: number[]; errors: number; first: number; last: number }
+  >();
+  for (const r of rows) {
+    const key = `${r.projectId}:${r.name}`;
+    let g = groups.get(key);
+    if (!g) {
+      g = { durations: [], errors: 0, first: r.timestamp, last: r.timestamp };
+      groups.set(key, g);
+    }
+    g.durations.push(r.duration);
+    if (r.status !== "ok") g.errors++;
+    g.first = Math.min(g.first, r.timestamp);
+    g.last = Math.max(g.last, r.timestamp);
+  }
+
+  return [...groups.entries()]
+    .map(([key, g]) => {
+      const [projectId, name] = key.split(":");
+      const sorted = [...g.durations].toSorted((a, b) => a - b);
+      const sum = sorted.reduce((a, b) => a + b, 0);
+      const hours = Math.max((g.last - g.first) / 3_600_000, 1 / 60);
+      return {
+        name,
+        count: g.durations.length,
+        p50: percentile(sorted, 50),
+        p95: percentile(sorted, 95),
+        p99: percentile(sorted, 99),
+        avg: Math.round(sum / sorted.length),
+        errorCount: g.errors,
+        errorRate: g.errors / sorted.length,
+        firstSeen: g.first,
+        lastSeen: g.last,
+        throughput: Math.round((g.durations.length / hours) * 10) / 10,
+        // projectId + projectName extras para o front agrupar
+        projectId: Number(projectId),
+        projectName: projectNames.get(Number(projectId)) ?? `#${projectId}`,
+      } as TransactionSummary & { projectId: number; projectName: string };
+    })
+    .toSorted((a, b) => b.count - a.count)
+    .slice(0, 200);
+}
 
 const VITAL_KEYS = ["lcp", "fcp", "cls", "ttfb", "inp", "fp"] as const;
 

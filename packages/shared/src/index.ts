@@ -188,6 +188,22 @@ export interface OverviewStats {
   events7d: number;
   eventsPerDay: DayCount[];
   projects: ProjectStat[];
+  // performance (Fase 4)
+  transactions24h: number;
+  txAvg24h: number;
+  txP9524h: number;
+  txErrorRate24h: number;
+  topRoutes: TopRoute[];
+}
+
+export interface TopRoute {
+  projectId: number;
+  projectName: string;
+  name: string;
+  count: number;
+  p95: number;
+  errorRate: number;
+  lastSeen: number;
 }
 
 // ------------------------------------------------------------------

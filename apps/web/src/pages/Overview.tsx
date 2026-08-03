@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowUpRight,
   ChartNoAxesColumn,
   CircleAlert,
   FolderKanban,
+  Gauge,
   LayoutGrid,
   TriangleAlert,
   Zap,
@@ -106,6 +108,83 @@ export function OverviewPage() {
         </CardHeader>
         <CardContent className="pt-2">
           {stats ? <BarChart data={stats.eventsPerDay} /> : <Skeleton className="h-36 w-full" />}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Transações · 24h" value={stats?.transactions24h ?? 0} icon={Gauge} />
+        <StatCard label="Latência média · 24h" value={stats?.txAvg24h ?? 0} icon={Zap} hint="ms" />
+        <StatCard
+          label="p95 · 24h"
+          value={stats?.txP9524h ?? 0}
+          icon={ChartNoAxesColumn}
+          hint="ms"
+        />
+        <StatCard
+          label="Taxa de erro · 24h"
+          value={Math.round((stats?.txErrorRate24h ?? 0) * 100)}
+          icon={TriangleAlert}
+          hint="%"
+        />
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
+            <span>Rotas mais lentas · 24h</span>
+            <Link
+              to="/performance"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary"
+            >
+              ver todas <ArrowUpRight className="size-3.5" />
+            </Link>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {stats?.topRoutes?.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rota</TableHead>
+                  <TableHead>Projeto</TableHead>
+                  <TableHead className="text-right">Eventos</TableHead>
+                  <TableHead className="text-right">p95</TableHead>
+                  <TableHead className="text-right">Erro</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stats.topRoutes.map((r) => (
+                  <TableRow key={`${r.projectId}:${r.name}`}>
+                    <TableCell>
+                      <Link
+                        to="/projects/$projectId/performance"
+                        params={{ projectId: String(r.projectId) }}
+                        className="block max-w-72 truncate font-mono font-medium hover:text-primary"
+                      >
+                        {r.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{r.projectName}</TableCell>
+                    <TableCell className="text-right font-mono">{r.count}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {r.p95 >= 1000 ? `${(r.p95 / 1000).toFixed(2)}s` : `${Math.round(r.p95)}ms`}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {r.errorRate > 0 ? (
+                        <span className="text-rose-400">{(r.errorRate * 100).toFixed(1)}%</span>
+                      ) : (
+                        <span className="text-muted-foreground">0%</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="p-4 text-center text-sm text-muted-foreground">
+              Sem transações nas últimas 24h.
+            </p>
+          )}
         </CardContent>
       </Card>
 
