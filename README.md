@@ -76,6 +76,8 @@ Sentry.init({ dsn: "https://<public_key>@errors.seudominio.com/1" });
 
 ## Limitações conhecidas / roadmap
 
+Ver [roadmap.md](./roadmap.md) para o plano completo de evolução até 1:1 com o Sentry.
+
 - Sem performance monitoring (transactions são ignoradas) — dá pra guardar como tabela separada
 - Sem sourcemaps (stack traces minificados chegam minificados)
 - Sem alertas/notificações (webhook ou email seria o próximo passo natural)

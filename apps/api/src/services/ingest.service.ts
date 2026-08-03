@@ -2,9 +2,9 @@ import { and, eq } from "drizzle-orm";
 import type { SentryEvent } from "@sentrylike/shared";
 import { db } from "../db";
 import { events, issues } from "../db/schema";
-import { computeFingerprint } from "./fingerprint";
+import { computeFingerprint } from "../lib/fingerprint";
 
-/** Sentry timestamps can be epoch seconds or ISO strings. Normalize to ms. */
+/** Sentry timestamps podem ser epoch seconds ou ISO string. Normaliza para ms. */
 function normalizeTimestamp(ts: SentryEvent["timestamp"]): number {
   if (typeof ts === "number") return ts < 1e12 ? Math.round(ts * 1000) : Math.round(ts);
   if (typeof ts === "string") {
@@ -30,8 +30,8 @@ function eventCulprit(event: SentryEvent): string | null {
 }
 
 /**
- * Stores one Sentry event, upserting the issue it groups into.
- * New occurrences of a resolved issue reopen it (Sentry "regression" behavior).
+ * Grava um evento Sentry, agrupando na issue correspondente (upsert).
+ * Nova ocorrência de issue resolvida/ignorada reabre (regressão).
  */
 export function storeEvent(projectId: number, event: SentryEvent): string {
   const fingerprint = computeFingerprint(event);
@@ -52,7 +52,7 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
       .set({
         lastSeen: Math.max(existing.lastSeen, ts),
         eventCount: existing.eventCount + 1,
-        status: "unresolved", // regression reopens
+        status: "unresolved", // regressão reabre
         title: existing.title || title,
         level,
         environment: event.environment ?? existing.environment,
@@ -94,7 +94,7 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
       message: title,
       payload: JSON.stringify(event),
     })
-    .onConflictDoNothing() // SDK retries send the same event_id
+    .onConflictDoNothing() // retry do SDK manda o mesmo event_id
     .run();
 
   return id;
