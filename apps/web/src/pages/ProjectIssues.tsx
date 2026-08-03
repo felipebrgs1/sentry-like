@@ -416,7 +416,11 @@ export function ProjectIssuesPage() {
                   to:
                     v === "performance"
                       ? "/projects/$projectId/performance"
-                      : "/projects/$projectId",
+                      : v === "alerts"
+                        ? "/projects/$projectId/alerts"
+                        : v === "releases"
+                          ? "/projects/$projectId/releases"
+                          : "/projects/$projectId",
                   params: { projectId },
                 })
               }
@@ -425,6 +429,7 @@ export function ProjectIssuesPage() {
                 <TabsTrigger value="issues">Issues</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
                 <TabsTrigger value="alerts">Alertas</TabsTrigger>
+                <TabsTrigger value="releases">Releases</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

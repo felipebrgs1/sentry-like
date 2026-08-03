@@ -14,6 +14,7 @@ import { ProjectIssuesPage } from "./pages/ProjectIssues";
 import { PerformancePage } from "./pages/Performance";
 import { PerformanceGlobalPage } from "./pages/PerformanceGlobal";
 import { ProjectAlertsPage } from "./pages/ProjectAlerts";
+import { ReleasesPage } from "./pages/Releases";
 import { IssueDetailPage } from "./pages/IssueDetail";
 
 function requireAuth() {
@@ -80,6 +81,12 @@ const projectAlertsRoute = createRoute({
   component: ProjectAlertsPage,
 });
 
+const projectReleasesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/projects/$projectId/releases",
+  component: ReleasesPage,
+});
+
 const issueRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/issues/$issueId",
@@ -95,6 +102,7 @@ const routeTree = rootRoute.addChildren([
     projectRoute,
     projectPerformanceRoute,
     projectAlertsRoute,
+    projectReleasesRoute,
     issueRoute,
   ]),
 ]);

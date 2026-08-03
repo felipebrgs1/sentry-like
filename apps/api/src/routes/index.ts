@@ -6,6 +6,7 @@ import { projectRoutes } from "./project.routes";
 import { issueRoutes } from "./issue.routes";
 import { performanceRoutes } from "./performance.routes";
 import { alertRoutes } from "./alert.routes";
+import { releaseRoutes, deployWebhookRoute } from "./release.routes";
 
 /** Monta todas as rotas da API. */
 export const routes = new Elysia()
@@ -16,4 +17,6 @@ export const routes = new Elysia()
   .use(projectRoutes)
   .use(issueRoutes)
   .use(performanceRoutes)
-  .use(alertRoutes);
+  .use(alertRoutes)
+  .use(releaseRoutes)
+  .use(deployWebhookRoute);

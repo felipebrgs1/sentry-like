@@ -228,6 +228,24 @@ export const alertLogs = sqliteTable(
   ],
 );
 
+// Fase 3 — Releases: metadata manual (commits via webhook de deploy)
+// As releases em si são auto-descobertas em events/transactions; esta tabela
+// só guarda o que o webhook/usuário marca (commits, deployedAt).
+export const releases = sqliteTable(
+  "releases",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id),
+    name: text("name").notNull(),
+    commits: text("commits"), // JSON array de ReleaseCommit
+    deployedAt: integer("deployed_at"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("releases_project_name").on(t.projectId, t.name)],
+);
+
 export const events = sqliteTable(
   "events",
   {

@@ -216,6 +216,7 @@ export function PerformancePage() {
                 <TabsTrigger value="issues">Issues</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
                 <TabsTrigger value="alerts">Alertas</TabsTrigger>
+                <TabsTrigger value="releases">Releases</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>

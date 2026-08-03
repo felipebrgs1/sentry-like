@@ -17,6 +17,7 @@
 | Dashboard (stats, gráfico 14d, recentes, resumo de performance, top rotas) | ✅     |
 | Performance: página global + por projeto, waterfall, p50/p95/p99, web vitals | ✅     |
 | Alertas: regras (nova/regressão/spike/idade/rate/digest), webhook Slack/Discord, histórico | ✅ |
+| Releases: página por projeto, issues novas, comparação, webhook de deploy, distribuição | ✅ |
 | Busca/filtros de issues (título, nível, ambiente, release)             | ✅     |
 | Detalhe: stacktrace, breadcrumbs, tags, contexts, JSON raw, frequência | ✅     |
 | Fase 2 completa: fingerprint custom, ignore com janela, regressão, merge, lote, prioridade, search salva, cursor, unread, owner | ✅ |
@@ -53,12 +54,12 @@ Deixar a ingestão 100% compatível com o protocolo do Sentry.
 - [x] **"Mark as seen" / unread** — indicador de não-lido por issue; ver o detalhe marca como lida
 - [x] **Assigned user / owner** — campo de atribuição (texto livre; útil quando multi-user chegar)
 
-## Fase 3 — Releases & environments completos 📋
+## Fase 3 — Releases & environments completos ✅
 
-- [ ] **Página de release** — deploy, commits (via GitHub/GitLab webhook), issues novas na release
-- [ ] **Ciclo de release** — marcar deploys, comparar issues entre releases
-- [ ] **Ambiente múltiplo por issue** — mostrar distribuição (hoje: coluna com o último)
-- [ ] **Distribuição de eventos por ambiente/release** — no gráfico de frequência
+- [x] **Página de release** — lista auto-descoberta (events + transactions), detalhe com issues novas na release (primeiro evento com aquela release), ambientes, latência (avg/p95/erro) e commits
+- [x] **Ciclo de release** — comparar issues entre releases (side-by-side: eventos, issues novas, latência, erro); marcar deploy via webhook GitHub/GitLab push (refs/tags) com commits
+- [x] **Ambiente múltiplo por issue** — distribuição por ambiente/release no detalhe da issue (hoje: coluna com o último)
+- [x] **Distribuição de eventos por ambiente/release** — barras no detalhe da release e no detalhe da issue
 
 ## Fase 4 — Performance (transactions) ✅
 

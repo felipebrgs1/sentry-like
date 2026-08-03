@@ -322,3 +322,58 @@ export interface AlertLog {
   status: "ok" | "error";
   response: string | null;
 }
+
+// ------------------------------------------------------------------
+// Releases & environments (Fase 3)
+// ------------------------------------------------------------------
+
+export interface ReleaseCommit {
+  id: string;
+  message: string;
+  author: string | null;
+  timestamp: number | null;
+  url: string | null;
+}
+
+export interface Release {
+  name: string;
+  projectId: number;
+  firstSeen: number; // primeiro evento/transação com essa release
+  lastSeen: number;
+  events: number;
+  transactions: number;
+  issues: number; // issues que tiveram eventos nessa release
+  deployedAt: number | null; // metadata manual (webhook de deploy)
+  commits: ReleaseCommit[];
+}
+
+export interface ReleaseDetail extends Release {
+  newIssues: Issue[]; // issues introduzidas na release (primeiro evento com essa release)
+  environments: Array<{ environment: string; events: number }>;
+  txAvg: number;
+  txP95: number;
+  txErrorRate: number;
+}
+
+export interface ReleaseCompare {
+  a: ReleaseCompareRow;
+  b: ReleaseCompareRow;
+}
+
+export interface ReleaseCompareRow {
+  name: string;
+  events: number;
+  newIssues: number;
+  issuesTotal: number;
+  txCount: number;
+  txAvg: number;
+  txP95: number;
+  txErrorRate: number;
+  firstSeen: number;
+  lastSeen: number;
+}
+
+export interface EnvCount {
+  name: string;
+  count: number;
+}

@@ -185,6 +185,15 @@ const CREATE_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS alert_logs_project ON alert_logs(project_id, sent_at)`,
   `CREATE INDEX IF NOT EXISTS alert_logs_rule_issue ON alert_logs(rule_id, issue_id)`,
+  `CREATE TABLE IF NOT EXISTS releases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    name TEXT NOT NULL,
+    commits TEXT,
+    deployed_at INTEGER,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS releases_project_name ON releases(project_id, name)`,
 ];
 
 // colunas adicionadas depois do schema inicial — idempotente em DBs existentes

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type {
   DayCount,
+  EnvCount,
   EventDetail,
   EventSummary,
   Issue,
@@ -47,6 +48,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 function normalizeTags(tags: SentryTags | undefined): Array<[string, string]> {
   if (!tags) return [];
   return Array.isArray(tags) ? tags : Object.entries(tags);
+}
+
+/** Distribuição dos eventos da issue por ambiente ou release (Fase 3). */
+function IssueDistribution({ title, url }: { title: string; url: string }) {
+  const { data } = useQuery({
+    queryKey: [url],
+    queryFn: () => api<EnvCount[]>(url),
+  });
+  const max = Math.max(1, ...(data ?? []).map((d) => d.count));
+  if (!data?.length) return null;
+  return (
+    <Card>
+      <CardHeader className="py-3">
+        <CardTitle className="text-xs font-medium text-muted-foreground">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1.5">
+        {data.map((d) => (
+          <div key={d.name} className="flex items-center gap-2 text-xs">
+            <span className="w-24 shrink-0 truncate font-mono text-muted-foreground">{d.name}</span>
+            <div className="h-3.5 flex-1 overflow-hidden rounded bg-muted">
+              <div
+                className="h-full rounded bg-primary/70"
+                style={{ width: `${(d.count / max) * 100}%` }}
+              />
+            </div>
+            <span className="w-12 shrink-0 text-right font-mono">{d.count}</span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
 }
 
 function normalizeBreadcrumbs(bc: SentryEvent["breadcrumbs"]): SentryBreadcrumb[] {
@@ -463,6 +495,11 @@ export function IssueDetailPage() {
           {eventStats ? <BarChart data={eventStats} /> : <Skeleton className="h-36 w-full" />}
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <IssueDistribution title="Por ambiente" url={`/v1/issues/${id}/environments`} />
+        <IssueDistribution title="Por release" url={`/v1/issues/${id}/releases`} />
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[280px_1fr_280px]">
         <Card className="h-fit">
