@@ -22,6 +22,7 @@ export const issues = sqliteTable(
       .notNull()
       .default("unresolved"),
     environment: text("environment"),
+    release: text("release"),
     firstSeen: integer("first_seen").notNull(),
     lastSeen: integer("last_seen").notNull(),
     eventCount: integer("event_count").notNull().default(0),
@@ -47,6 +48,7 @@ export const events = sqliteTable(
     level: text("level").notNull().default("error"),
     message: text("message"),
     environment: text("environment"),
+    release: text("release"),
     payload: text("payload").notNull(),
   },
   (t) => [

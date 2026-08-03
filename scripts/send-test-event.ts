@@ -14,6 +14,8 @@ const event = {
   timestamp: Date.now() / 1000,
   platform: "javascript",
   level: "error",
+  release: "0.1.0",
+  environment: "demo",
   message: "Evento de teste do sentrylike",
   exception: {
     values: [
@@ -30,8 +32,7 @@ const event = {
       },
     ],
   },
-  tags: { environment: "demo", release: "0.1.0" },
-  breadcrumbs: [
+  tags: { environment: "demo", release: "0.1.0" },  breadcrumbs: [
     { timestamp: Date.now() / 1000 - 5, category: "ui.click", message: "clicou em 'Pagar'" },
     { timestamp: Date.now() / 1000 - 2, category: "http", message: "POST /checkout → 500" },
   ],

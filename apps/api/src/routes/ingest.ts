@@ -4,6 +4,7 @@ import { db } from "../db";
 import { projects } from "../db/schema";
 import { parseEnvelope } from "../lib/envelope";
 import { storeEvent } from "../lib/ingest";
+import { isRateLimited, RATE_LIMIT_HEADER } from "../lib/ratelimit";
 import { MAX_ENVELOPE_BYTES } from "../config";
 import type { SentryEvent } from "@sentrylike/shared";
 
@@ -51,6 +52,12 @@ export const ingestRoutes = new Elysia()
       return { detail: "invalid public key" };
     }
 
+    if (isRateLimited(project.id)) {
+      set.status = 429;
+      set.headers = { "x-sentry-rate-limits": RATE_LIMIT_HEADER };
+      return {};
+    }
+
     const raw = maybeGunzip(
       await readRawBody(request, body),
       request.headers.get("content-encoding"),
@@ -95,6 +102,12 @@ export const ingestRoutes = new Elysia()
     if (key && key !== project.publicKey) {
       set.status = 403;
       return { detail: "invalid public key" };
+    }
+
+    if (isRateLimited(project.id)) {
+      set.status = 429;
+      set.headers = { "x-sentry-rate-limits": RATE_LIMIT_HEADER };
+      return {};
     }
 
     try {

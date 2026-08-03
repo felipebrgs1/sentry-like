@@ -56,6 +56,7 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
         title: existing.title || title,
         level,
         environment: event.environment ?? existing.environment,
+        release: event.release ?? existing.release,
       })
       .where(eq(issues.id, existing.id))
       .run();
@@ -71,6 +72,7 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
         level,
         status: "unresolved",
         environment: event.environment ?? null,
+        release: event.release ?? null,
         firstSeen: ts,
         lastSeen: ts,
         eventCount: 1,
@@ -88,6 +90,7 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
       timestamp: ts,
       level,
       environment: event.environment ?? null,
+      release: event.release ?? null,
       message: title,
       payload: JSON.stringify(event),
     })

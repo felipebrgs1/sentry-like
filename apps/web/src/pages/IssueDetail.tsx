@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function normalizeTags(tags: SentryTags | undefined): Array<[string, string]> {
   if (!tags) return [];
@@ -135,6 +136,7 @@ function EventView({ event }: { event: EventDetail }) {
   const breadcrumbs = normalizeBreadcrumbs(p.breadcrumbs);
   const tags = normalizeTags(p.tags);
   const [copied, setCopied] = useState(false);
+  const [tab, setTab] = useState("resumo");
 
   async function copyId() {
     await navigator.clipboard.writeText(event.id);
@@ -152,28 +154,50 @@ function EventView({ event }: { event: EventDetail }) {
         </button>
       </div>
 
-      {exceptions.map((exc, i) => (
-        <div key={i} className="space-y-2">
-          <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2.5">
-            <span className="font-mono font-semibold text-destructive">
-              {exc.type ?? "Error"}
-            </span>
-            {exc.value && <span className="ml-2 text-sm text-foreground/80">{exc.value}</span>}
-          </div>
-          {exc.stacktrace?.frames?.length ? <StackTrace frames={exc.stacktrace.frames} /> : null}
-        </div>
-      ))}
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="resumo">Resumo</TabsTrigger>
+          <TabsTrigger value="json">JSON</TabsTrigger>
+        </TabsList>
+        <TabsContent value="resumo" className="mt-4 space-y-4">
+          {exceptions.map((exc, i) => (
+            <div key={i} className="space-y-2">
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2.5">
+                <span className="font-mono font-semibold text-destructive">
+                  {exc.type ?? "Error"}
+                </span>
+                {exc.value && <span className="ml-2 text-sm text-foreground/80">{exc.value}</span>}
+              </div>
+              {exc.stacktrace?.frames?.length ? <StackTrace frames={exc.stacktrace.frames} /> : null}
+            </div>
+          ))}
 
-      {breadcrumbs.length > 0 && (
-        <Card>
-          <CardHeader className="py-3">
-            <CardTitle className="text-sm">Breadcrumbs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BreadcrumbTimeline breadcrumbs={breadcrumbs} />
-          </CardContent>
-        </Card>
-      )}
+          {breadcrumbs.length > 0 && (
+            <Card>
+              <CardHeader className="py-3">
+                <CardTitle className="text-sm">Breadcrumbs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BreadcrumbTimeline breadcrumbs={breadcrumbs} />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        <TabsContent value="json" className="mt-4">
+          <Card>
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm">Payload bruto do evento</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[70vh]">
+                <pre className="p-4 font-mono text-xs leading-relaxed text-muted-foreground">
+                  {JSON.stringify(p, null, 2)}
+                </pre>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

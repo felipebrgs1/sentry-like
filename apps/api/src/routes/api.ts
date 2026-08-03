@@ -195,8 +195,8 @@ export const apiRoutes = new Elysia({ prefix: "/v1" })
       conds.push(eq(issues.status, issueStatus(query.status)));
       if (query.q) conds.push(like(issues.title, `%${query.q.trim()}%`));
       if (query.level) conds.push(eq(issues.level, query.level));
+      // issue pode ter eventos de vários ambientes/releases — filtra pelos eventos
       if (query.env) {
-        // uma issue pode ter eventos de vários ambientes — filtra pelos eventos
         conds.push(
           exists(
             db
@@ -206,6 +206,17 @@ export const apiRoutes = new Elysia({ prefix: "/v1" })
           ),
         );
       }
+      if (query.release) {
+        conds.push(
+          exists(
+            db
+              .select({ one: sql`1` })
+              .from(events)
+              .where(and(eq(events.issueId, issues.id), eq(events.release, query.release))),
+          ),
+        );
+      }
+
       return db
         .select()
         .from(issues)
@@ -220,6 +231,7 @@ export const apiRoutes = new Elysia({ prefix: "/v1" })
         q: t.Optional(t.String()),
         level: t.Optional(t.String()),
         env: t.Optional(t.String()),
+        release: t.Optional(t.String()),
       }),
     },
   )
@@ -237,6 +249,57 @@ export const apiRoutes = new Elysia({ prefix: "/v1" })
       .all()
       .map((r) => r.environment as string),
   )
+
+  .get("/projects/:id/releases", ({ params }) => {
+    const rows = db
+      .select({
+        name: events.release,
+        events: sql<number>`count(*)`,
+        lastSeen: sql<number>`max(${events.timestamp})`,
+      })
+      .from(events)
+      .where(
+        and(
+          eq(events.projectId, Number(params.id)),
+          isNotNull(events.release),
+        ),
+      )
+      .groupBy(events.release)
+      .orderBy(desc(sql`max(${events.timestamp})`))
+      .all();
+    return rows
+      .filter((r): r is { name: string; events: number; lastSeen: number } => !!r.name)
+      .map((r) => ({ name: r.name, events: r.events, lastSeen: r.lastSeen }));
+  })
+
+  .patch(
+    "/projects/:id",
+    ({ params, body }) => {
+      db.update(projects)
+        .set({ name: body.name })
+        .where(eq(projects.id, Number(params.id)))
+        .run();
+      return { ok: true };
+    },
+    { body: t.Object({ name: t.String({ minLength: 1, maxLength: 120 }) }) },
+  )
+
+  .post("/projects/:id/rotate-key", ({ params }) => {
+    const key = crypto.randomUUID().replace(/-/g, "");
+    db.update(projects)
+      .set({ publicKey: key })
+      .where(eq(projects.id, Number(params.id)))
+      .run();
+    return { publicKey: key };
+  })
+
+  .delete("/projects/:id", ({ params }) => {
+    const id = Number(params.id);
+    db.delete(events).where(eq(events.projectId, id)).run();
+    db.delete(issues).where(eq(issues.projectId, id)).run();
+    db.delete(projects).where(eq(projects.id, id)).run();
+    return { ok: true };
+  })
 
   .get("/issues/:id", ({ params, set }) => {
     const issue = db
@@ -261,6 +324,7 @@ export const apiRoutes = new Elysia({ prefix: "/v1" })
           timestamp: events.timestamp,
           level: events.level,
           environment: events.environment,
+          release: events.release,
           message: events.message,
         })
         .from(events)

@@ -91,6 +91,7 @@ export interface Issue {
   level: string;
   status: IssueStatus;
   environment: string | null;
+  release: string | null;
   firstSeen: number;
   lastSeen: number;
   eventCount: number;
@@ -102,6 +103,7 @@ export interface EventSummary {
   timestamp: number;
   level: string;
   environment: string | null;
+  release: string | null;
   message: string | null;
 }
 
@@ -119,6 +121,12 @@ export interface ProjectStat {
   name: string;
   openIssues: number;
   events24h: number;
+}
+
+export interface ReleaseStat {
+  name: string;
+  events: number;
+  lastSeen: number;
 }
 
 export interface OverviewStats {

@@ -53,6 +53,8 @@ CREATE INDEX IF NOT EXISTS events_issue ON events(issue_id);
 for (const stmt of [
   "ALTER TABLE issues ADD COLUMN environment TEXT",
   "ALTER TABLE events ADD COLUMN environment TEXT",
+  "ALTER TABLE issues ADD COLUMN release TEXT",
+  "ALTER TABLE events ADD COLUMN release TEXT",
 ]) {
   try {
     sqlite.exec(stmt);
