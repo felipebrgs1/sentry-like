@@ -64,7 +64,11 @@ function originAllowed(origin: string | null, allowed: string[]): boolean {
   });
 }
 
-/** Valida projeto, key do DSN e Origin. Preenche set.status em caso de erro. */
+/**
+ * Valida projeto, key do DSN e Origin. Preenche set.status em caso de erro.
+ * A key do DSN É a autenticação (modelo Sentry): sem key ou key errada → 403.
+ * (Antes, ausência de key era liberada — conveniência de teste que vazou p/ prod.)
+ */
 async function guardProject(ctx: HandlerContext): Promise<Project | null> {
   const project = await getProject(Number(ctx.params.projectId));
   if (!project) {
@@ -72,7 +76,7 @@ async function guardProject(ctx: HandlerContext): Promise<Project | null> {
     return null;
   }
   const key = extractSentryKey(ctx.request);
-  if (key && key !== project.publicKey) {
+  if (!key || key !== project.publicKey) {
     ctx.set.status = 403;
     return null;
   }

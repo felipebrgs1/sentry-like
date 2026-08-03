@@ -7,6 +7,13 @@ const dsn = process.argv[2] ?? "http://localhost:3001/1";
 const count = Number(process.argv[3] ?? 20);
 const url = new URL(dsn);
 const projectId = url.pathname.replace(/^\//, "");
+const publicKey = url.username;
+if (!publicKey) {
+  console.error(
+    "O DSN precisa da key: https://<public_key>@host/<project_id> (pegue em /v1/projects)",
+  );
+  process.exit(1);
+}
 const base = `${url.protocol}//${url.host}`;
 
 const routes = [
@@ -85,7 +92,7 @@ for (let i = 0; i < count; i++) {
     user: { id: String(1 + (i % 50)), geo: { country_code: "BR" } },
   };
 
-  const res = await fetch(`${base}/api/${projectId}/store/`, {
+  const res = await fetch(`${base}/api/${projectId}/store/?sentry_key=${publicKey}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(event),

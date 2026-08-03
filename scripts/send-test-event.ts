@@ -8,6 +8,12 @@ const dsn = process.argv[2] ?? "http://localhost:3001/1";
 const url = new URL(dsn);
 const projectId = url.pathname.replace(/^\//, "");
 const publicKey = url.username;
+if (!publicKey) {
+  console.error(
+    "O DSN precisa da key: https://<public_key>@host/<project_id> (pegue em /v1/projects)",
+  );
+  process.exit(1);
+}
 
 const event = {
   event_id: crypto.randomUUID().replace(/-/g, ""),
