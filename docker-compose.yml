@@ -1,0 +1,17 @@
+# Conveniência — o Dockerfile sozinho já basta (`docker build -t sentrylike .`)
+services:
+  sentrylike:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # defina um usuário/senha estável; se não definir, a senha é gerada e impressa nos logs
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      RETENTION_DAYS: ${RETENTION_DAYS:-30}
+    volumes:
+      - sentrylike-data:/data
+    restart: unless-stopped
+
+volumes:
+  sentrylike-data:

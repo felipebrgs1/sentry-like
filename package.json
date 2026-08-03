@@ -1,0 +1,21 @@
+{
+  "name": "sentrylike",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "start": "bun apps/api/src/index.ts",
+    "demo:event": "bun scripts/send-test-event.ts"
+  },
+  "devDependencies": {
+    "turbo": "^2.10.8"
+  },
+  "packageManager": "bun@1.3.14"
+}
