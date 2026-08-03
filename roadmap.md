@@ -76,7 +76,7 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 ## Fase 5 — Alertas & notificações ✅
 
 - [x] **Regras de alerta** — new issue, regression, spike de frequência, "issue ficou sem resolver X dias", perto do rate limit, digest diário
-- [x] **Canais** — webhook genérico + Slack + Discord (payloads formatados); email fica pendente de infra SMTP (Bun.email na VPS é possível depois)
+- [x] **Canais** — webhook genérico + Slack + Discord (payloads formatados)
 - [x] **Digest diário** — resumo das últimas 24h (novas issues, eventos, top issues) via webhook, cooldown 22h
 - [x] **Rate alert** — alertar quando ingestão chegar perto do limite (≥80% em 1min, 1x/hora)
 - [x] **Infra** — disparos de new_issue/regression na ingestão; pico/idade/rate/digest no check periódico (setInterval 5min na VPS, cron */5 no CF); histórico em `alert_logs` + página de Alertas com CRUD/testar/ligar-desligar
@@ -91,10 +91,9 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 
 - [x] **Tabela de usuários** — senha com hash PBKDF2-SHA256 (Web Crypto, portável Bun/Worker), não mais env var única; bootstrap cria o owner do env
 - [x] **Organizações/teams** — tabelas `orgs` + `org_members`; projetos têm `org_id` (backfill na org default); membros veem só projetos da org
-- [x] **Roles** — owner (tudo) / member (leitura + triagem); mutações de projeto e gestão de usuários são owner-only; convites por email pendentes (sem SMTP)
+- [x] **Roles** — owner (tudo) / member (leitura + triagem); mutações de projeto e gestão de usuários são owner-only; criação de usuário é feita pelo owner (sem convite por email)
 - [x] **API tokens** — Bearer para automação (CI, upload de sourcemap), com revogação e lastUsedAt
 - [x] **2FA** — TOTP (RFC 6238, HMAC-SHA1 via Web Crypto) com URI otpauth, confirmação e exigência no login
-- [ ] **SSO** — Google/GitHub OAuth fica pendente (exige client id/secret; infra pronta para adicionar)
 
 ## Fase 8 — Sourcemaps & simbolização 🧪 (o item mais difícil)
 
@@ -116,7 +115,6 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 - [ ] **Atalhos de teclado** — `g i` (issues), `/` (busca) etc.
 - [ ] **Responsivo/mobile** — hoje otimizado para desktop
 - [ ] **i18n** — pelo menos EN + PT-BR
-- [ ] **PWA** — notificações locais de alerta
 - [ ] **Empty states** — guias de integração quando projeto não tem eventos
 
 ## Infra & qualidade (transversal) 📋
@@ -126,7 +124,6 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 - [ ] **Testes** — unit (ingestão, fingerprint, rate limit) + integração (SDK → API → DB)
 - [ ] **Observabilidade do próprio servidor** — métricas de ingestão/latência em `/health`
 - [ ] **Rate limit global por IP** — além do por projeto
-- [ ] **Postgres como opção** — driver alternativo do Drizzle, sem mudar o resto (SQLite continua default)
 - [x] **Cloudflare Workers como opção de deploy** — D1 (driver drizzle assíncrono), R2 (blobs), KV (rate limit), Static Assets (SPA), cron de retenção; VPS continua default via `bun run start`
 
 ---
@@ -141,6 +138,10 @@ O Sentry hoje é "error + performance". Para 1:1 precisamos das duas.
 | ML/grouping inteligente (Sentry usa aprendizado p/ sugerir grupos) | Fora de proporção; fingerprint + regras cobrem o caso real                      |
 | Quotas/planos de faturamento                                       | Sem SaaS, sem billing                                                           |
 | Integrações de terceiros completas (Jira, Linear, Slack app)       | Vem via webhooks genéricos                                                      |
+| Email (digest, convites, reset de senha)                           | Sem infra SMTP; webhooks cobrem alertas, owner cria usuários direto e reset é por prova de posse (secret/shell) |
+| SSO (Google/GitHub OAuth)                                          | Auto-host de poucos usuários — senha + 2FA já cobrem; exigiria client id/secret e callbacks |
+| PWA / notificações locais                                           | Sem loja de apps; alertas já chegam via webhook (Slack/Discord)                      |
+| Postgres como opção                                                 | SQLite + D1 cobrem o público (VPS micro e Workers); trocar de banco exigiria refactor da camada de dados |
 
 ---
 

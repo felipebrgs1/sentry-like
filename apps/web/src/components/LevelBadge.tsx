@@ -6,7 +6,7 @@ const CONFIG: Record<string, { icon: LucideIcon; cls: string }> = {
   fatal: { icon: CircleX, cls: "bg-red-500/15 text-red-400 border-red-500/40" },
   error: { icon: CircleX, cls: "bg-red-500/10 text-red-400 border-red-500/30" },
   warning: { icon: TriangleAlert, cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  info: { icon: Info, cls: "bg-sky-500/15 text-sky-400 border-sky-500/30" },
+  info: { icon: Info, cls: "bg-muted text-muted-foreground border-border" },
   debug: { icon: Bug, cls: "bg-muted text-muted-foreground border-border" },
 };
 

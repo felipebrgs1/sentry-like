@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Ban,
+  Bot,
   ChevronDown,
   CircleCheckBig,
   CircleDot,
@@ -27,6 +28,7 @@ import type {
   UserReport,
 } from "@sentrylike/shared";
 import { api } from "../api";
+import { buildAgentPrompt } from "../lib/agentPrompt";
 import { LevelBadge } from "../components/LevelBadge";
 import { PriorityBadge } from "../components/PriorityBadge";
 import { BarChart } from "../components/BarChart";
@@ -371,6 +373,26 @@ export function IssueDetailPage() {
     },
   });
 
+  const [copiedAgent, setCopiedAgent] = useState(false);
+  const { data: project } = useQuery({
+    queryKey: ["project", String(issue?.projectId ?? "")],
+    queryFn: () => api<{ name: string }>(`/v1/projects/${issue?.projectId}`),
+    enabled: !!issue,
+  });
+
+  async function copyForAgent() {
+    if (!issue || !event) return;
+    const text = buildAgentPrompt({
+      issue,
+      projectName: project?.name,
+      event,
+      events: undefined,
+    });
+    await navigator.clipboard.writeText(text);
+    setCopiedAgent(true);
+    setTimeout(() => setCopiedAgent(false), 1500);
+  }
+
   // marca como lida ao abrir o detalhe (atividade nova só aparece na listagem)
   useEffect(() => {
     if (issue?.unread === 1) markSeen.mutate();
@@ -435,6 +457,16 @@ export function IssueDetailPage() {
           última: <span className="text-foreground">{timeAgo(issue.lastSeen)}</span>
         </span>
         <div className="ml-auto flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            title="Copia um resumo em markdown pronto para colar num agente de IA"
+            disabled={!event || copiedAgent}
+            onClick={copyForAgent}
+          >
+            {copiedAgent ? "copiado!" : <Bot />}
+            {!copiedAgent && <span className="hidden sm:inline">Copiar para agente</span>}
+          </Button>
           <Button
             variant={issue.status === "unresolved" ? "default" : "outline"}
             size="sm"

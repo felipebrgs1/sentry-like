@@ -679,7 +679,7 @@ export function ProjectIssuesPage() {
                       checked={allChecked}
                       onChange={toggleAll}
                       aria-label="selecionar todas"
-                      className="size-4 accent-violet-600"
+                      className="size-4 accent-foreground"
                     />
                   </TableHead>
                   <TableHead>Issue</TableHead>
@@ -697,7 +697,7 @@ export function ProjectIssuesPage() {
                         checked={selected.has(issue.id)}
                         onChange={() => toggleOne(issue.id)}
                         aria-label={`selecionar ${issue.title}`}
-                        className="size-4 accent-violet-600"
+                        className="size-4 accent-foreground"
                       />
                     </TableCell>
                     <TableCell>
@@ -707,7 +707,7 @@ export function ProjectIssuesPage() {
                         {issue.unread === 1 && (
                           <span
                             title="não lida"
-                            className="size-2 shrink-0 rounded-full bg-violet-400"
+                            className="size-2 shrink-0 rounded-full bg-foreground"
                           />
                         )}
                         <Link
