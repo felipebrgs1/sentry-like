@@ -26,6 +26,15 @@ if ! wrangler whoami >/dev/null 2>&1; then
 fi
 echo "✓ ok"
 
+# wrangler.toml é gitignored (IDs da sua conta) — num clone fresco, cria a partir do exemplo
+if [ ! -f "$CONFIG" ]; then
+  if [ ! -f "wrangler.toml.example" ]; then
+    echo "✗ nem wrangler.toml nem wrangler.toml.example existem — clone incompleto"; exit 1
+  fi
+  cp wrangler.toml.example "$CONFIG"
+  echo "✓ wrangler.toml criado a partir do exemplo"
+fi
+
 echo "== 1. banco D1 =="
 if grep -q 'database_id = "SUBSTITUA' "$CONFIG"; then
   OUT=$(wrangler d1 create "$D1_NAME")
@@ -65,14 +74,27 @@ bun run build
 echo "✓ build ok"
 
 echo "== 5. senha do dashboard (ADMIN_PASSWORD) =="
+# A Cloudflare NÃO pode gerar senha aleatória (isolates efêmeros — cada um teria
+# uma senha diferente e o login ficaria impossível). A senha TEM que ser definida.
+PW=""
 if [ -n "${CF_ADMIN_PASSWORD:-}" ]; then
-  echo "$CF_ADMIN_PASSWORD" | wrangler secret put ADMIN_PASSWORD >/dev/null
-  echo "✓ ADMIN_PASSWORD definida via CF_ADMIN_PASSWORD"
+  PW="$CF_ADMIN_PASSWORD"
 elif wrangler secret list 2>/dev/null | grep -q ADMIN_PASSWORD; then
-  echo "✓ ADMIN_PASSWORD já existe"
+  echo "✓ ADMIN_PASSWORD já existe (mantendo)"
 else
-  echo "⚠ nenhuma ADMIN_PASSWORD definida — o dashboard vai gerar uma senha aleatória"
-  echo "  (veja no log do deploy) ou defina depois: echo 'sua-senha' | wrangler secret put ADMIN_PASSWORD"
+  while true; do
+    read -rsp "Defina a senha do dashboard (login: admin): " PW; echo
+    [ -n "$PW" ] && break
+  done
+  read -rsp "Confirme a senha: " PW2; echo
+  if [ "$PW" != "$PW2" ]; then
+    echo "✗ senhas não conferem — rode o script de novo"
+    exit 1
+  fi
+fi
+if [ -n "$PW" ]; then
+  echo "$PW" | wrangler secret put ADMIN_PASSWORD >/dev/null
+  echo "✓ ADMIN_PASSWORD definida"
 fi
 
 echo "== 6. deploy =="

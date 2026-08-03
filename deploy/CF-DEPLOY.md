@@ -71,6 +71,58 @@ Depois disso, cada push na branch default faz deploy automático.
 | `RATE_LIMIT_PER_MIN` | `[vars]` | `600` | limite de eventos/min/projeto |
 | `RETENTION_DAYS` | `[vars]` | `30` | dias de retenção (cron roda 3h da manhã) |
 
+## Upgrade / nova versão
+
+O bootstrap do banco é idempotente (`CREATE TABLE IF NOT EXISTS` + `ALTER ADD COLUMN` em try/catch),
+então **nova versão = novo deploy**, sem passo manual de migração.
+
+**Caminho A (local):**
+
+```bash
+git pull
+bash deploy/cf-setup.sh
+```
+
+O script detecta que D1/R2/KV já existem (IDs reais no `wrangler.toml`) e a senha já está
+definida — ele só roda `bun install && bun run build && wrangler deploy`.
+
+**Caminho B (integração Git):** cada push na branch default já faz deploy automático —
+upgrade é só `git push`.
+
+### Privacidade: `wrangler.toml` está no .gitignore
+
+O `wrangler.toml` contém os IDs da sua conta (D1 database_id, KV namespace id). São
+**identificadores**, não credenciais (o acesso real é o token do `wrangler login` na sua
+máquina) — mas para não expor os IDs no repo, ele é gitignorado:
+
+- `wrangler.toml` → não é commitado; guarde uma cópia dele fora do repo (backup)
+- `wrangler.toml.example` → commitado; num clone novo o `cf-setup.sh` copia o exemplo,
+  cria os recursos e preenche os IDs automaticamente
+- `git pull` nunca conflita com o seu arquivo local (git ignora)
+- `.dev.vars` (segredos locais do `wrangler dev`) também é gitignorado
+
+Se já tinha commitado o `wrangler.toml` antes: `git rm --cached wrangler.toml` para
+parar de trackear (o arquivo local continua).
+
+### Como a migração de schema acontece
+
+1. O deploy sobe a nova versão do Worker (atômico, sem downtime).
+2. No primeiro request, `initD1Db()` roda `CREATE TABLE IF NOT EXISTS` + `ALTER ADD COLUMN`
+   — colunas/tabelas novas são criadas no D1 na hora. Tudo aditivo.
+3. A latência desse primeiro request é um pouco maior (várias statements de DDL), o resto igual.
+
+> Se uma futura versão precisar de **transformação de dados** (ex.: backfill de uma coluna nova),
+> o padrão é adicionar a query no `initD1Db` (ou num script `bun run scripts/migrate.ts` para VPS).
+
+### Rollback e downgrade
+
+- **Rollback de código**: `wrangler rollback` (ou `wrangler versions list` + `wrangler versions deploy <id>`).
+  A Cloudflare guarda as versões anteriores.
+- **Schema não reverte**: se a nova versão rodou ALTERs no D1, voltar o código para a versão
+  antiga **funciona** (código antigo ignora colunas extras) — desde que a migração seja aditiva,
+  que é a regra do projeto. Nunca remova colunas sem um plano de migração.
+- **Secrets/vars**: `wrangler secret put` e `[vars]` sobrevivem ao deploy/rollback — não precisa refazer.
+
 ## Limitações conscientes na Cloudflare
 
 - **D1 tem latência de rede** por query (na VPS é arquivo local) — ok para uso micro.

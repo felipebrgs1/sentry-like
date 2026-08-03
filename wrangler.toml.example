@@ -1,4 +1,8 @@
-# Cloudflare Workers — deploy alternativo (VPS continua o default via bun run start)
+# Cloudflare Workers — modelo para o deploy (copie para wrangler.toml e preencha)
+# O wrangler.toml real (com os IDs da SUA conta) está no .gitignore.
+# Rode `bash deploy/cf-setup.sh` num clone novo — ele cria os recursos e
+# preenche os placeholders abaixo automaticamente.
+#
 # 1. bun run build                       (gera o front em apps/web/dist)
 # 2. wrangler d1 create sentrylike       → cole o database_id abaixo
 # 3. wrangler deploy                     (local: wrangler dev)

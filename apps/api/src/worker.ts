@@ -46,6 +46,13 @@ let ready: Promise<void> | null = null;
 function ensureReady(env: Env): Promise<void> {
   ready ??= (async () => {
     await initD1Db(env.DB);
+    // Cloudflare não pode gerar senha aleatória (isolates efêmeros) — avisa alto
+    if (!process.env.ADMIN_PASSWORD?.trim()) {
+      console.error(
+        "[sentrylike] ADMIN_PASSWORD não definido! O login fica impossível na Cloudflare." +
+          " Defina: echo 'sua-senha' | wrangler secret put ADMIN_PASSWORD",
+      );
+    }
     if (env.R2) setBlobStore(r2BlobStore(env.R2));
     if (env.RATE_LIMIT_KV) setRateLimiter(kvRateLimiter(env.RATE_LIMIT_KV));
     if ((await db.select().from(projects).all()).length === 0) {

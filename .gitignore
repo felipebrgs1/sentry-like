@@ -6,4 +6,6 @@ dist
 *.db-wal
 .env
 .env.local
+.dev.vars
 .wrangler
+wrangler.toml
