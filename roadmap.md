@@ -17,6 +17,7 @@
 | Dashboard (stats, gráfico 14d, recentes)                               | ✅     |
 | Busca/filtros de issues (título, nível, ambiente, release)             | ✅     |
 | Detalhe: stacktrace, breadcrumbs, tags, contexts, JSON raw, frequência | ✅     |
+| Fase 2 completa: fingerprint custom, ignore com janela, regressão, merge, lote, prioridade, search salva, cursor, unread, owner | ✅ |
 | Projetos: CRUD, DSN, rotate key, settings                              | ✅     |
 | Auth single-user com sessão                                            | ✅     |
 | Deploy: 1 container, SQLite, retenção                                  | ✅     |
@@ -36,18 +37,18 @@ Deixar a ingestão 100% compatível com o protocolo do Sentry.
 - [x] **Client Reports / SDK feedback** — item `client_report` do envelope persistido em tabela para métricas futuras
 - [x] **`sentry-trace`/`baggage`** — parsing do header e injeção no `contexts.trace` do evento (pré-requisito da fase 4; validado: SDK browser envia trace real)
 
-## Fase 2 — Issues & grouping (o coração do produto) 🔜
+## Fase 2 — Issues & grouping (o coração do produto) ✅
 
-- [ ] **Fingerprint custom** — respeitar `event.fingerprint` enviado pelo SDK (hoje: hash interno)
-- [ ] **Ignorar com janela de tempo** — "ignorar por 30m / 1h / 24h" com expiração (status `ignored_until`)
-- [ ] **Badge de regressão** — marcar issue que reabriu depois de resolvida
-- [ ] **Merge / unmerge de issues** — juntar issues iguais manualmente
-- [ ] **Ações em lote** — selecionar múltiplas issues na listagem e resolver/ignorar/deletar
-- [ ] **Prioridade** — scoring (recência × frequência × nível) com labels low/medium/high
-- [ ] **Search salva** — salvar combinações de filtro como views
-- [ ] **Paginação com cursor** — listagens hoje limitadas a 200/50
-- [ ] **"Mark as seen" / unread** — indicador de não-lido por issue
-- [ ] **Assigned user / owner** — útil quando multi-user chegar
+- [x] **Fingerprint custom** — respeitar `event.fingerprint` enviado pelo SDK (hoje: hash interno)
+- [x] **Ignorar com janela de tempo** — "ignorar por 30m / 1h / 24h" com expiração (status `ignored_until`); janela expirada conta como aberta e evento novo reabre
+- [x] **Badge de regressão** — marcar issue que reabriu depois de resolvida
+- [x] **Merge / unmerge de issues** — juntar issues iguais manualmente (`original_issue_id` por evento permite desfazer)
+- [x] **Ações em lote** — selecionar múltiplas issues na listagem e resolver/ignorar/marcar vistas/deletar/mesclar
+- [x] **Prioridade** — scoring (nível × frequência × recência) com labels low/medium/high
+- [x] **Search salva** — salvar combinações de filtro como views por projeto
+- [x] **Paginação com cursor** — listagens com cursor base64 (lastSeen,id), "carregar mais" no front
+- [x] **"Mark as seen" / unread** — indicador de não-lido por issue; ver o detalhe marca como lida
+- [x] **Assigned user / owner** — campo de atribuição (texto livre; útil quando multi-user chegar)
 
 ## Fase 3 — Releases & environments completos 📋
 

@@ -31,6 +31,14 @@ CREATE TABLE IF NOT EXISTS issues (
   event_count INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX IF NOT EXISTS issues_project_fingerprint ON issues(project_id, fingerprint);
+CREATE TABLE IF NOT EXISTS saved_searches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id),
+  name TEXT NOT NULL,
+  filters TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS saved_searches_project ON saved_searches(project_id);
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
   created_at INTEGER NOT NULL,
@@ -106,6 +114,17 @@ for (const stmt of [
   "ALTER TABLE issues ADD COLUMN release TEXT",
   "ALTER TABLE events ADD COLUMN release TEXT",
   "ALTER TABLE projects ADD COLUMN allowed_domains TEXT",
+  // Fase 2
+  "ALTER TABLE issues ADD COLUMN ignored_until INTEGER",
+  "ALTER TABLE issues ADD COLUMN regressed INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE issues ADD COLUMN priority TEXT NOT NULL DEFAULT 'low'",
+  "ALTER TABLE issues ADD COLUMN unread INTEGER NOT NULL DEFAULT 1",
+  "ALTER TABLE issues ADD COLUMN merged_into INTEGER",
+  "ALTER TABLE issues ADD COLUMN assigned_to TEXT",
+  "ALTER TABLE events ADD COLUMN original_issue_id INTEGER",
+  "CREATE INDEX IF NOT EXISTS events_original_issue ON events(original_issue_id)",
+  "CREATE TABLE IF NOT EXISTS saved_searches (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL REFERENCES projects(id), name TEXT NOT NULL, filters TEXT NOT NULL, created_at INTEGER NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS saved_searches_project ON saved_searches(project_id)",
 ]) {
   try {
     sqlite.exec(stmt);

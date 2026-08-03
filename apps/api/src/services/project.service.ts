@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Project, ReleaseStat } from "@sentrylike/shared";
 import { db } from "../db";
 import { events, issues, projects } from "../db/schema";
@@ -76,11 +76,18 @@ export function projectIssueCount(id: number): number {
 }
 
 export function projectOpenIssueCount(id: number): number {
+  const now = Date.now();
   return (
     db
       .select({ c: sql<number>`count(*)` })
       .from(issues)
-      .where(and(eq(issues.projectId, id), eq(issues.status, "unresolved")))
+      .where(
+        and(
+          eq(issues.projectId, id),
+          isNull(issues.mergedInto),
+          sql`(${issues.status} = 'unresolved' OR (${issues.status} = 'ignored' AND ${issues.ignoredUntil} IS NOT NULL AND ${issues.ignoredUntil} < ${now}))`,
+        ),
+      )
       .get()?.c ?? 0
   );
 }

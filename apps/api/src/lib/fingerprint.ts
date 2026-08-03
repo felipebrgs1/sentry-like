@@ -5,8 +5,15 @@ import type { SentryEvent } from "@sentrylike/shared";
  * Groups events into issues, mimicking Sentry's default grouping:
  * exception type + the most significant stack frames.
  * Sentry frames arrive oldest-first, so the crashing frame is LAST.
+ *
+ * Se o SDK enviou `event.fingerprint` (array de strings), ele tem prioridade —
+ * é o mecanismo oficial do Sentry para forçar agrupamento custom.
  */
 export function computeFingerprint(event: SentryEvent): string {
+  if (event.fingerprint?.length) {
+    return sha256(`fingerprint:${event.fingerprint.join("\u0000")}`);
+  }
+
   const exc = event.exception?.values?.[0];
   const frames = exc?.stacktrace?.frames;
 

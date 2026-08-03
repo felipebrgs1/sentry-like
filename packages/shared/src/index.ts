@@ -35,6 +35,7 @@ export type SentryTags = Record<string, string> | Array<[string, string]>;
 
 export interface SentryEvent {
   event_id?: string;
+  fingerprint?: string[]; // fingerprint custom enviado pelo SDK
   timestamp?: number | string;
   platform?: string;
   level?: string;
@@ -81,7 +82,9 @@ export interface ProjectWithStats extends Project {
   events24h: number;
 }
 
-export type IssueStatus = "unresolved" | "resolved" | "ignored";
+export type IssueStatus = "unresolved" | "resolved" | "ignored" | "merged";
+
+export type IssuePriority = "low" | "medium" | "high";
 
 export interface Issue {
   id: number;
@@ -96,6 +99,39 @@ export interface Issue {
   firstSeen: number;
   lastSeen: number;
   eventCount: number;
+  /** Quando a janela de "ignorar por X" expira (ms epoch). null = sem janela. */
+  ignoredUntil: number | null;
+  /** 1 = reabriu depois de resolvida (badge de regressão). */
+  regressed: number;
+  priority: IssuePriority;
+  /** 1 = não lida (atividade nova desde a última visita). */
+  unread: number;
+  /** null = visível; id = foi mesclada nesta issue (oculta). */
+  mergedInto: number | null;
+  /** Owner/atribuído (texto livre até a fase multi-user). */
+  assignedTo: string | null;
+}
+
+/** Paginação com cursor: `nextCursor` null = acabou. */
+export interface IssuePage {
+  items: Issue[];
+  nextCursor: string | null;
+}
+
+export interface SavedSearchFilters {
+  status?: string;
+  q?: string;
+  level?: string;
+  env?: string;
+  release?: string;
+}
+
+export interface SavedSearch {
+  id: number;
+  projectId: number;
+  name: string;
+  filters: SavedSearchFilters;
+  createdAt: number;
 }
 
 export interface EventSummary {

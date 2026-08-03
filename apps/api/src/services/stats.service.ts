@@ -1,4 +1,4 @@
-import { eq, gt, sql } from "drizzle-orm";
+import { gt, sql } from "drizzle-orm";
 import type { OverviewStats } from "@sentrylike/shared";
 import { db } from "../db";
 import { events, issues } from "../db/schema";
@@ -25,7 +25,9 @@ export function overview(): OverviewStats {
     db
       .select({ c: sql<number>`count(*)` })
       .from(issues)
-      .where(eq(issues.status, "unresolved"))
+      .where(
+        sql`(status = 'unresolved' OR (status = 'ignored' AND ignored_until IS NOT NULL AND ignored_until < ${now})) AND merged_into IS NULL`,
+      )
       .get()?.c ?? 0;
 
   const perDay = db

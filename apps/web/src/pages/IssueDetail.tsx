@@ -1,7 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, CircleCheckBig, CircleDot, Copy, History, Trash2 } from "lucide-react";
+import {
+  Ban,
+  ChevronDown,
+  CircleCheckBig,
+  CircleDot,
+  Copy,
+  Eye,
+  GitMerge,
+  History,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import type {
   DayCount,
   EventDetail,
@@ -15,10 +26,19 @@ import type {
 } from "@sentrylike/shared";
 import { api } from "../api";
 import { LevelBadge } from "../components/LevelBadge";
+import { PriorityBadge } from "../components/PriorityBadge";
 import { BarChart } from "../components/BarChart";
 import { fmtTime, timeAgo } from "../lib/format";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -203,7 +223,15 @@ const STATUS_LABEL: Record<IssueStatus, string> = {
   unresolved: "aberta",
   resolved: "resolvida",
   ignored: "ignorada",
+  merged: "mesclada",
 };
+
+const IGNORE_OPTIONS: Array<{ label: string; ms: number | null }> = [
+  { label: "30 minutos", ms: 30 * 60_000 },
+  { label: "1 hora", ms: 3_600_000 },
+  { label: "24 horas", ms: 24 * 3_600_000 },
+  { label: "Para sempre", ms: null },
+];
 
 export function IssueDetailPage() {
   const { issueId } = useParams({ from: "/_app/issues/$issueId" });
@@ -242,8 +270,30 @@ export function IssueDetailPage() {
   };
 
   const setStatus = useMutation({
-    mutationFn: (status: IssueStatus) =>
-      api(`/v1/issues/${id}/status`, { method: "POST", body: JSON.stringify({ status }) }),
+    mutationFn: (args: { status: IssueStatus; ignoreUntil?: number | null }) =>
+      api(`/v1/issues/${id}/status`, {
+        method: "POST",
+        body: JSON.stringify({ status: args.status, ignoreUntil: args.ignoreUntil ?? null }),
+      }),
+    onSuccess: invalidate,
+  });
+
+  const markSeen = useMutation({
+    mutationFn: () => api(`/v1/issues/${id}/seen`, { method: "POST" }),
+    onSuccess: invalidate,
+  });
+
+  const assign = useMutation({
+    mutationFn: (assignedTo: string | null) =>
+      api(`/v1/issues/${id}/assign`, {
+        method: "POST",
+        body: JSON.stringify({ assignedTo }),
+      }),
+    onSuccess: invalidate,
+  });
+
+  const unmerge = useMutation({
+    mutationFn: () => api(`/v1/issues/${id}/unmerge`, { method: "POST" }),
     onSuccess: invalidate,
   });
 
@@ -256,7 +306,15 @@ export function IssueDetailPage() {
     },
   });
 
+  // marca como lida ao abrir o detalhe (atividade nova só aparece na listagem)
+  useEffect(() => {
+    if (issue?.unread === 1) markSeen.mutate();
+  }, [issue?.unread, id, markSeen]);
+
   if (!issue) return <Skeleton className="h-64 w-full" />;
+
+  const ignoreEnd =
+    issue.ignoredUntil && issue.ignoredUntil > Date.now() ? issue.ignoredUntil : null;
 
   const payload = event?.payload;
   const tags = normalizeTags(payload?.tags);
@@ -274,9 +332,18 @@ export function IssueDetailPage() {
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <LevelBadge level={issue.level} />
+          <PriorityBadge priority={issue.priority} />
           <h1 className="text-xl font-semibold tracking-tight">{issue.title}</h1>
+          {issue.regressed === 1 && (
+            <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-400">
+              regressão
+            </Badge>
+          )}
           <Badge variant={issue.status === "resolved" ? "default" : "secondary"}>
             {STATUS_LABEL[issue.status]}
+            {ignoreEnd
+              ? ` até ${new Date(ignoreEnd).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+              : ""}
           </Badge>
         </div>
         {issue.culprit && (
@@ -302,12 +369,14 @@ export function IssueDetailPage() {
         <span className="text-muted-foreground">
           última: <span className="text-foreground">{timeAgo(issue.lastSeen)}</span>
         </span>
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex flex-wrap gap-2">
           <Button
             variant={issue.status === "unresolved" ? "default" : "outline"}
             size="sm"
             onClick={() =>
-              setStatus.mutate(issue.status === "unresolved" ? "resolved" : "unresolved")
+              setStatus.mutate({
+                status: issue.status === "unresolved" ? "resolved" : "unresolved",
+              })
             }
             disabled={setStatus.isPending}
           >
@@ -321,13 +390,53 @@ export function IssueDetailPage() {
               </>
             )}
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+              disabled={setStatus.isPending}
+            >
+              <Ban />{" "}
+              {ignoreEnd
+                ? `Ignorada até ${new Date(ignoreEnd).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+                : "Ignorar"}
+              <ChevronDown className="size-3.5 opacity-70" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Ignorar por</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {IGNORE_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.label}
+                  onSelect={() =>
+                    setStatus.mutate({
+                      status: "ignored",
+                      ignoreUntil: opt.ms ? Date.now() + opt.ms : null,
+                    })
+                  }
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setStatus.mutate("ignored")}
-            disabled={setStatus.isPending || issue.status === "ignored"}
+            onClick={() => markSeen.mutate()}
+            disabled={markSeen.isPending || issue.unread === 0}
           >
-            <Ban /> Ignorar
+            <Eye /> {issue.unread === 1 ? "Marcar como vista" : "Vista"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (confirm("Restaurar issues que foram mescladas nesta?")) unmerge.mutate();
+            }}
+            disabled={unmerge.isPending}
+            title="Restaurar issues mescladas"
+          >
+            <GitMerge /> Desmesclar
           </Button>
           <Button
             variant="outline"
@@ -417,6 +526,7 @@ export function IssueDetailPage() {
             </CardHeader>
             <CardContent className="space-y-1 py-2">
               <DetailRow label="nível" value={issue.level} />
+              <DetailRow label="prioridade" value={issue.priority} />
               <DetailRow label="ambiente" value={issue.environment ?? ""} />
               <DetailRow label="release" value={payload?.release ?? ""} />
               <DetailRow label="plataforma" value={payload?.platform ?? ""} />
@@ -425,6 +535,51 @@ export function IssueDetailPage() {
                 value={payload?.sdk?.name ? `${payload.sdk.name}@${payload.sdk.version ?? ""}` : ""}
               />
               <DetailRow label="fingerprint" value={issue.fingerprint.slice(0, 16) + "…"} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <UserRound className="size-4" /> Atribuída a
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 py-2">
+              {issue.assignedTo ? (
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant="outline" className="font-mono">
+                    {issue.assignedTo}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={assign.isPending}
+                    onClick={() => assign.mutate(null)}
+                  >
+                    Desatribuir
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Não atribuída.</p>
+              )}
+              <form
+                className="flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const v = (e.currentTarget.elements.namedItem("assignee") as HTMLInputElement)
+                    ?.value;
+                  if (v?.trim()) assign.mutate(v.trim());
+                }}
+              >
+                <input
+                  name="assignee"
+                  placeholder="nome ou email…"
+                  className="h-8 w-full rounded-md border bg-background px-2 font-mono text-xs outline-none focus:ring-1 focus:ring-primary"
+                />
+                <Button type="submit" variant="outline" size="sm" disabled={assign.isPending}>
+                  Atribuir
+                </Button>
+              </form>
             </CardContent>
           </Card>
 

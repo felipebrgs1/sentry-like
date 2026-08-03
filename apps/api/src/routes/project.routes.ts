@@ -16,8 +16,22 @@ export const projectRoutes = new Elysia({ prefix: "/v1" })
       level: t.Optional(t.String()),
       env: t.Optional(t.String()),
       release: t.Optional(t.String()),
+      cursor: t.Optional(t.String()),
+      limit: t.Optional(t.String()),
     }),
   })
+  .get("/projects/:id/saved-searches", ({ params }) => project.savedSearches({ params }))
+  .post(
+    "/projects/:id/saved-searches",
+    ({ params, body, set }) => project.createSavedSearch({ params, body, set }),
+    {
+      body: t.Object({
+        name: t.String({ minLength: 1, maxLength: 80 }),
+        filters: t.Record(t.String(), t.Optional(t.String())),
+      }),
+    },
+  )
+  .delete("/saved-searches/:id", ({ params, set }) => project.removeSavedSearch({ params, set }))
   .get("/projects/:id/environments", ({ params }) => project.environments({ params }))
   .get("/projects/:id/releases", ({ params }) => project.releases({ params }))
   .patch("/projects/:id", ({ params, body, set }) => project.update({ params, body, set }), {

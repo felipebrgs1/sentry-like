@@ -33,15 +33,41 @@ export function get({ params, request, set }: Pick<HandlerContext, "params" | "r
   };
 }
 
-/** GET /v1/projects/:id/issues — com filtros */
+/** GET /v1/projects/:id/issues — com filtros e paginação por cursor */
 export function issues({ params, query }: Pick<HandlerContext, "params" | "query">) {
-  return issueService.listProjectIssues(Number(params.id), {
-    status: query?.status,
-    q: query?.q,
-    level: query?.level,
-    env: query?.env,
-    release: query?.release,
-  });
+  const limit = Math.min(Math.max(Number(query?.limit ?? 50), 1), 200);
+  return issueService.listProjectIssues(
+    Number(params.id),
+    {
+      status: query?.status,
+      q: query?.q,
+      level: query?.level,
+      env: query?.env,
+      release: query?.release,
+    },
+    issueService.decodeCursor(query?.cursor),
+    limit,
+  );
+}
+
+/** GET /v1/projects/:id/saved-searches */
+export function savedSearches({ params }: Pick<HandlerContext, "params">) {
+  return issueService.listSavedSearches(Number(params.id));
+}
+
+/** POST /v1/projects/:id/saved-searches */
+export function createSavedSearch({
+  params,
+  body,
+  set,
+}: Pick<HandlerContext, "params" | "body" | "set">) {
+  const b = (body ?? {}) as { name?: string; filters?: Record<string, string | undefined> };
+  const name = b.name?.trim();
+  if (!name) {
+    set.status = 400;
+    return { error: "name is required" };
+  }
+  return issueService.createSavedSearch(Number(params.id), name, b.filters ?? {});
 }
 
 /** GET /v1/projects/:id/environments */
@@ -86,6 +112,15 @@ export function rotateKey({ params, set }: Pick<HandlerContext, "params" | "set"
     return { error: "not found" };
   }
   return { publicKey: projectService.rotateProjectKey(Number(params.id)) };
+}
+
+/** DELETE /v1/saved-searches/:id */
+export function removeSavedSearch({ params, set }: Pick<HandlerContext, "params" | "set">) {
+  if (!issueService.deleteSavedSearch(Number(params.id))) {
+    set.status = 404;
+    return { error: "not found" };
+  }
+  return { ok: true };
 }
 
 /** DELETE /v1/projects/:id */

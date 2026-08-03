@@ -19,7 +19,7 @@ export const issues = sqliteTable(
     title: text("title").notNull(),
     culprit: text("culprit"),
     level: text("level").notNull().default("error"),
-    status: text("status", { enum: ["unresolved", "resolved", "ignored"] })
+    status: text("status", { enum: ["unresolved", "resolved", "ignored", "merged"] })
       .notNull()
       .default("unresolved"),
     environment: text("environment"),
@@ -27,9 +27,28 @@ export const issues = sqliteTable(
     firstSeen: integer("first_seen").notNull(),
     lastSeen: integer("last_seen").notNull(),
     eventCount: integer("event_count").notNull().default(0),
+    // Fase 2: janela de ignore, regressão, prioridade, unread, merge, owner
+    ignoredUntil: integer("ignored_until"),
+    regressed: integer("regressed").notNull().default(0),
+    priority: text("priority", { enum: ["low", "medium", "high"] })
+      .notNull()
+      .default("low"),
+    unread: integer("unread").notNull().default(1),
+    mergedInto: integer("merged_into"),
+    assignedTo: text("assigned_to"),
   },
   (t) => [uniqueIndex("issues_project_fingerprint").on(t.projectId, t.fingerprint)],
 );
+
+export const savedSearches = sqliteTable("saved_searches", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  projectId: integer("project_id")
+    .notNull()
+    .references(() => projects.id),
+  name: text("name").notNull(),
+  filters: text("filters").notNull(), // JSON de SavedSearchFilters
+  createdAt: integer("created_at").notNull(),
+});
 
 export const sessions = sqliteTable("sessions", {
   token: text("token").primaryKey(),
@@ -124,10 +143,13 @@ export const events = sqliteTable(
     message: text("message"),
     environment: text("environment"),
     release: text("release"),
+    // usada no unmerge: issue original de onde o evento veio antes do merge
+    originalIssueId: integer("original_issue_id"),
     payload: text("payload").notNull(),
   },
   (t) => [
     index("events_project_ts").on(t.projectId, t.timestamp),
     index("events_issue").on(t.issueId),
+    index("events_original_issue").on(t.originalIssueId),
   ],
 );

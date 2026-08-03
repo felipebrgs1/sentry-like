@@ -1,13 +1,32 @@
-import { and, desc, eq, exists, gt, like, sql } from "drizzle-orm";
-import type { DayCount, EventSummary, Issue, IssueStatus } from "@sentrylike/shared";
+import { and, desc, eq, exists, gt, isNull, like, lt, or, sql } from "drizzle-orm";
+import type {
+  DayCount,
+  EventSummary,
+  Issue,
+  IssuePage,
+  IssueStatus,
+  SavedSearch,
+  SavedSearchFilters,
+} from "@sentrylike/shared";
 import { db } from "../db";
-import { events, issues } from "../db/schema";
+import { events, issues, savedSearches } from "../db/schema";
 import { fillDays } from "../lib/timeseries";
+import { computePriority } from "../lib/priority";
 
-const ISSUE_STATUSES = ["unresolved", "resolved", "ignored"] as const;
+const ISSUE_STATUSES = ["unresolved", "resolved", "ignored", "merged"] as const;
 
 export function issueStatus(s?: string): (typeof ISSUE_STATUSES)[number] {
   return ISSUE_STATUSES.find((x) => x === s) ?? "unresolved";
+}
+
+export type IssueRow = typeof issues.$inferSelect;
+
+/** Status efetivo: ignore com janela expirada conta como unresolved. */
+export function effectiveStatus(row: { status: string; ignoredUntil: number | null }): IssueStatus {
+  if (row.status === "ignored" && row.ignoredUntil && row.ignoredUntil < Date.now()) {
+    return "unresolved";
+  }
+  return row.status as IssueStatus;
 }
 
 export interface IssueFilters {
@@ -18,8 +37,53 @@ export interface IssueFilters {
   release?: string;
 }
 
-export function listProjectIssues(projectId: number, f: IssueFilters): Issue[] {
-  const conds = [eq(issues.projectId, projectId), eq(issues.status, issueStatus(f.status))];
+export interface Cursor {
+  lastSeen: number;
+  id: number;
+}
+
+export function encodeCursor(lastSeen: number, id: number): string {
+  return Buffer.from(`${lastSeen}:${id}`).toString("base64url");
+}
+
+export function decodeCursor(raw?: string): Cursor | null {
+  if (!raw) return null;
+  try {
+    const [ls, id] = Buffer.from(raw, "base64url").toString("utf8").split(":");
+    const lastSeen = Number(ls);
+    const idn = Number(id);
+    if (!Number.isFinite(lastSeen) || !Number.isInteger(idn)) return null;
+    return { lastSeen, id: idn };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Lista issues do projeto com paginação por cursor (lastSeen desc, id desc).
+ * Issues mescladas (merged_into != null) ficam ocultas; ignore com janela
+ * expirada aparece como "unresolved".
+ */
+export function listProjectIssues(
+  projectId: number,
+  f: IssueFilters,
+  cursor: Cursor | null = null,
+  limit = 50,
+): IssuePage {
+  const now = Date.now();
+  const conds = [eq(issues.projectId, projectId), isNull(issues.mergedInto)];
+
+  const status = issueStatus(f.status);
+  if (status === "unresolved") {
+    conds.push(
+      sql`(${issues.status} = 'unresolved' OR (${issues.status} = 'ignored' AND ${issues.ignoredUntil} IS NOT NULL AND ${issues.ignoredUntil} < ${now}))`,
+    );
+  } else if (status !== "merged") {
+    conds.push(eq(issues.status, status));
+  } else {
+    conds.push(eq(issues.status, "merged"));
+  }
+
   if (f.q) conds.push(like(issues.title, `%${f.q.trim()}%`));
   if (f.level) conds.push(eq(issues.level, f.level));
   // issue pode ter eventos de vários ambientes/releases — filtra pelos eventos
@@ -43,31 +107,84 @@ export function listProjectIssues(projectId: number, f: IssueFilters): Issue[] {
       ),
     );
   }
+
+  if (cursor) {
+    const pageCond = or(
+      lt(issues.lastSeen, cursor.lastSeen),
+      and(eq(issues.lastSeen, cursor.lastSeen), lt(issues.id, cursor.id)),
+    );
+    if (pageCond) conds.push(pageCond);
+  }
+
+  const rows = db
+    .select()
+    .from(issues)
+    .where(and(...conds))
+    .orderBy(desc(issues.lastSeen), desc(issues.id))
+    .limit(limit + 1) // +1 para saber se há próxima página
+    .all();
+
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const last = pageRows[pageRows.length - 1];
+
+  return {
+    items: pageRows.map((r) => ({ ...r, status: effectiveStatus(r) })),
+    nextCursor: hasMore && last ? encodeCursor(last.lastSeen, last.id) : null,
+  };
+}
+
+export function recentIssues(status?: string, limit = 10): Issue[] {
+  const now = Date.now();
+  const conds = [isNull(issues.mergedInto)];
+  if (issueStatus(status) === "unresolved") {
+    conds.push(
+      sql`(${issues.status} = 'unresolved' OR (${issues.status} = 'ignored' AND ${issues.ignoredUntil} IS NOT NULL AND ${issues.ignoredUntil} < ${now}))`,
+    );
+  } else {
+    conds.push(eq(issues.status, issueStatus(status)));
+  }
   return db
     .select()
     .from(issues)
     .where(and(...conds))
     .orderBy(desc(issues.lastSeen))
-    .limit(200)
-    .all();
-}
-
-export function recentIssues(status?: string, limit = 10): Issue[] {
-  return db
-    .select()
-    .from(issues)
-    .where(eq(issues.status, issueStatus(status)))
-    .orderBy(desc(issues.lastSeen))
     .limit(limit)
-    .all();
+    .all()
+    .map((r) => ({ ...r, status: effectiveStatus(r) }));
 }
 
 export function getIssue(id: number): Issue | undefined {
-  return db.select().from(issues).where(eq(issues.id, id)).get();
+  const row = db.select().from(issues).where(eq(issues.id, id)).get();
+  return row ? { ...row, status: effectiveStatus(row) } : undefined;
 }
 
-export function updateIssueStatus(id: number, status: IssueStatus) {
-  db.update(issues).set({ status }).where(eq(issues.id, id)).run();
+/** Seta o status. `ignoreUntil` (ms) vale só para "ignored". */
+export function updateIssueStatus(
+  id: number,
+  status: IssueStatus,
+  ignoreUntil: number | null = null,
+) {
+  db.update(issues)
+    .set({
+      status,
+      ignoredUntil: status === "ignored" ? ignoreUntil : null,
+      // resolver limpa a regressão; reabrir também
+      regressed: status === "unresolved" || status === "resolved" ? 0 : undefined,
+    })
+    .where(eq(issues.id, id))
+    .run();
+}
+
+export function setIssueSeen(id: number) {
+  db.update(issues).set({ unread: 0 }).where(eq(issues.id, id)).run();
+}
+
+export function assignIssue(id: number, assignedTo: string | null) {
+  db.update(issues)
+    .set({ assignedTo: assignedTo ? assignedTo.trim().slice(0, 120) || null : null })
+    .where(eq(issues.id, id))
+    .run();
 }
 
 export function deleteIssue(id: number): boolean {
@@ -113,4 +230,155 @@ export function issueEventsPerDay(id: number, days = 14): DayCount[] {
     .groupBy(sql`date(timestamp / 1000, 'unixepoch')`)
     .all();
   return fillDays(rows, now, days);
+}
+
+// ------------------------------------------------------------------
+// Merge / unmerge (Fase 2)
+// ------------------------------------------------------------------
+
+/**
+ * Mescla `ids` na issue alvo. Os eventos das origens são movidos para o alvo
+ * guardando `original_issue_id` (para o unmerge). As origens ficam ocultas
+ * com status "merged" + merged_into = alvo.
+ */
+export function mergeIssues(targetId: number, ids: number[]): boolean {
+  const target = db.select().from(issues).where(eq(issues.id, targetId)).get();
+  if (!target) return false;
+  const sources = ids
+    .filter((id) => id !== targetId)
+    .map((id) => db.select().from(issues).where(eq(issues.id, id)).get())
+    .filter((r): r is IssueRow => !!r && r.mergedInto == null);
+  if (!sources.length) return false;
+
+  for (const src of sources) {
+    // preserva a primeira origem registrada (merge em cascata)
+    db.update(events)
+      .set({
+        issueId: targetId,
+        originalIssueId: sql`coalesce(${events.originalIssueId}, ${src.id})`,
+      })
+      .where(eq(events.issueId, src.id))
+      .run();
+    db.update(issues)
+      .set({ status: "merged", mergedInto: targetId, unread: 0 })
+      .where(eq(issues.id, src.id))
+      .run();
+  }
+
+  recomputeIssueStats(targetId);
+  return true;
+}
+
+/** Restaura issues que foram mescladas no alvo, movendo de volta seus eventos. */
+export function unmergeIssues(targetId: number): boolean {
+  const merged = db
+    .select()
+    .from(issues)
+    .where(and(eq(issues.mergedInto, targetId), eq(issues.status, "merged")))
+    .all();
+  if (!merged.length) return false;
+
+  for (const src of merged) {
+    db.update(events)
+      .set({ issueId: src.id })
+      .where(and(eq(events.originalIssueId, src.id), eq(events.issueId, targetId)))
+      .run();
+    db.update(issues)
+      .set({
+        status: "unresolved",
+        mergedInto: null,
+        regressed: 0,
+        priority: computePriority(src.level, src.eventCount, src.lastSeen),
+      })
+      .where(eq(issues.id, src.id))
+      .run();
+    recomputeIssueStats(src.id);
+  }
+  recomputeIssueStats(targetId);
+  return true;
+}
+
+/** Recalcula eventCount, firstSeen, lastSeen, priority a partir dos eventos. */
+function recomputeIssueStats(id: number) {
+  const row = db
+    .select({
+      count: sql<number>`count(*)`,
+      first: sql<number>`min(${events.timestamp})`,
+      last: sql<number>`max(${events.timestamp})`,
+    })
+    .from(events)
+    .where(eq(events.issueId, id))
+    .get();
+  if (!row) return;
+  db.update(issues)
+    .set({
+      eventCount: row.count,
+      firstSeen: row.first,
+      lastSeen: row.last,
+      priority: computePriority("error", row.count, row.last),
+    })
+    .where(eq(issues.id, id))
+    .run();
+}
+
+// ------------------------------------------------------------------
+// Ações em lote (Fase 2)
+// ------------------------------------------------------------------
+
+export type BatchAction = "resolve" | "unresolve" | "ignore" | "seen" | "delete";
+
+export function batchUpdate(ids: number[], action: BatchAction, ignoreUntil: number | null = null) {
+  for (const id of ids) {
+    if (action === "delete") {
+      deleteIssue(id);
+      continue;
+    }
+    if (action === "seen") {
+      setIssueSeen(id);
+      continue;
+    }
+    const status: IssueStatus =
+      action === "resolve" ? "resolved" : action === "ignore" ? "ignored" : "unresolved";
+    updateIssueStatus(id, status, status === "ignored" ? ignoreUntil : null);
+  }
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------
+// Search salva (Fase 2)
+// ------------------------------------------------------------------
+
+export function listSavedSearches(projectId: number): SavedSearch[] {
+  return db
+    .select()
+    .from(savedSearches)
+    .where(eq(savedSearches.projectId, projectId))
+    .orderBy(desc(savedSearches.createdAt))
+    .all()
+    .map((r) => ({ ...r, filters: JSON.parse(r.filters) as SavedSearchFilters }));
+}
+
+export function createSavedSearch(
+  projectId: number,
+  name: string,
+  filters: SavedSearchFilters,
+): SavedSearch {
+  const row = db
+    .insert(savedSearches)
+    .values({
+      projectId,
+      name: name.trim().slice(0, 80),
+      filters: JSON.stringify(filters),
+      createdAt: Date.now(),
+    })
+    .returning({ id: savedSearches.id })
+    .get();
+  return { id: row.id, projectId, name: name.trim().slice(0, 80), filters, createdAt: Date.now() };
+}
+
+export function deleteSavedSearch(id: number): boolean {
+  const existing = db.select().from(savedSearches).where(eq(savedSearches.id, id)).get();
+  if (!existing) return false;
+  db.delete(savedSearches).where(eq(savedSearches.id, id)).run();
+  return true;
 }

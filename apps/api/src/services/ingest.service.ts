@@ -11,6 +11,7 @@ import {
   userReports,
 } from "../db/schema";
 import { computeFingerprint } from "../lib/fingerprint";
+import { computePriority } from "../lib/priority";
 import { saveBlob } from "../lib/storage";
 import { MAX_ATTACHMENT_BYTES } from "../config";
 
@@ -44,11 +45,15 @@ function eventCulprit(event: SentryEvent): string | null {
 
 /**
  * Grava um evento Sentry, agrupando na issue correspondente (upsert).
- * Nova ocorrência de issue resolvida/ignorada reabre (regressão).
+ * Semântica de status (igual Sentry):
+ * - resolved + evento novo → reabre com badge de regressão
+ * - ignored (sem janela) + evento novo → continua ignorada
+ * - ignored com janela expirada → reabre sem badge de regressão
  */
 export function storeEvent(projectId: number, event: SentryEvent): string {
   const fingerprint = computeFingerprint(event);
   const ts = normalizeTimestamp(event.timestamp);
+  const now = Date.now();
   const title = eventTitle(event);
   const level = event.level ?? "error";
   const id = (event.event_id ?? crypto.randomUUID()).replace(/-/g, "");
@@ -61,15 +66,33 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
 
   let issueId: number;
   if (existing) {
+    const wasResolved = existing.status === "resolved";
+    const ignoreExpired =
+      existing.status === "ignored" && existing.ignoredUntil != null && existing.ignoredUntil < now;
+
+    // ignore sem janela (ou janela ainda vigente) continua ignorada
+    const staysIgnored = existing.status === "ignored" && !ignoreExpired;
+    const nextStatus = staysIgnored ? "ignored" : "unresolved";
+
     db.update(issues)
       .set({
         lastSeen: Math.max(existing.lastSeen, ts),
         eventCount: existing.eventCount + 1,
-        status: "unresolved", // regressão reabre
+        status: nextStatus,
+        // badge de regressão: reabriu depois de resolvida
+        regressed: wasResolved ? 1 : existing.regressed,
+        ignoredUntil: staysIgnored ? existing.ignoredUntil : null,
         title: existing.title || title,
         level,
         environment: event.environment ?? existing.environment,
         release: event.release ?? existing.release,
+        priority: computePriority(
+          level,
+          existing.eventCount + 1,
+          Math.max(existing.lastSeen, ts),
+          now,
+        ),
+        unread: 1, // atividade nova
       })
       .where(eq(issues.id, existing.id))
       .run();
@@ -89,6 +112,8 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
         firstSeen: ts,
         lastSeen: ts,
         eventCount: 1,
+        priority: computePriority(level, 1, ts, now),
+        unread: 1,
       })
       .returning({ id: issues.id })
       .get();
