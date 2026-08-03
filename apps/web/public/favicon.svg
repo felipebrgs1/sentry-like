@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Dark Minimalist Canvas -->
+  <rect width="512" height="512" rx="100" fill="#09090b" />
+
+  <!-- Shield Outline -->
+  <path
+    d="M 256 70 C 330 70 390 92 390 92 V 228 C 390 328 322 396 256 432 C 190 396 122 328 122 228 V 92 C 122 92 182 70 256 70 Z"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="20"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Pulse / Telemetry Waveform -->
+  <path
+    d="M 90 256 H 180 L 210 190 L 245 320 L 285 140 L 320 280 L 345 230 L 370 256 H 422"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="20"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

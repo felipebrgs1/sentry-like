@@ -1,7 +1,21 @@
 import { and, desc, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Project, ReleaseStat } from "@sentrylike/shared";
 import { db } from "../db";
-import { events, issues, projects } from "../db/schema";
+import {
+  alertLogs,
+  alertRules,
+  attachments,
+  clientReports,
+  events,
+  issues,
+  projects,
+  replays,
+  savedSearches,
+  sentrySessions,
+  spans,
+  transactions,
+  userReports,
+} from "../db/schema";
 
 export function buildDsn(origin: string, publicKey: string, projectId: number): string {
   return `${origin.replace("://", `://${publicKey}@`)}/${projectId}`;
@@ -62,8 +76,23 @@ export async function rotateProjectKey(id: number): Promise<string> {
   return key;
 }
 
+/**
+ * Deleta o projeto e TUDO que referencia ele (cascade manual — ordem importa
+ * por causa das foreign keys: no D1 o FK é enforceado e o DELETE falha se
+ * sobrarem linhas referenciando o projeto).
+ */
 export async function deleteProject(id: number): Promise<boolean> {
   if (!(await getProject(id))) return false;
+  await db.delete(alertLogs).where(eq(alertLogs.projectId, id)).run(); // antes de alertRules
+  await db.delete(alertRules).where(eq(alertRules.projectId, id)).run();
+  await db.delete(savedSearches).where(eq(savedSearches.projectId, id)).run();
+  await db.delete(spans).where(eq(spans.projectId, id)).run(); // antes de transactions
+  await db.delete(transactions).where(eq(transactions.projectId, id)).run();
+  await db.delete(replays).where(eq(replays.projectId, id)).run();
+  await db.delete(clientReports).where(eq(clientReports.projectId, id)).run();
+  await db.delete(attachments).where(eq(attachments.projectId, id)).run();
+  await db.delete(userReports).where(eq(userReports.projectId, id)).run();
+  await db.delete(sentrySessions).where(eq(sentrySessions.projectId, id)).run();
   await db.delete(events).where(eq(events.projectId, id)).run();
   await db.delete(issues).where(eq(issues.projectId, id)).run();
   await db.delete(projects).where(eq(projects.id, id)).run();

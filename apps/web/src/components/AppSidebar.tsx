@@ -1,8 +1,9 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bug, ChartNoAxesColumn, FolderKanban, Gauge, LayoutGrid, LogOut } from "lucide-react";
+import { ChartNoAxesColumn, FolderKanban, Gauge, LayoutGrid, LogOut } from "lucide-react";
 import type { ProjectWithStats } from "@sentrylike/shared";
 import { api, logout } from "@/api";
+import { SentrylikeLogo } from "./SentrylikeLogo";
 import {
   Sidebar,
   SidebarContent,
@@ -38,8 +39,8 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link to="/" />}>
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Bug className="size-4" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-foreground text-background">
+                <SentrylikeLogo size={18} />
               </div>
               <div className="leading-tight">
                 <p className="font-semibold">sentrylike</p>
