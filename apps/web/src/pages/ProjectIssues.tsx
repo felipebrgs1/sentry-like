@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -26,6 +26,7 @@ import type {
 import { api } from "../api";
 import { LevelBadge } from "../components/LevelBadge";
 import { PriorityBadge } from "../components/PriorityBadge";
+import { ProjectEmptyState } from "../components/ProjectEmptyState";
 import { timeAgo } from "../lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -319,6 +320,14 @@ export function ProjectIssuesPage() {
     setSelected(new Set());
   }, [projectId, status, debouncedQ, level, env, release]);
 
+  // atalho "/" (Fase 10): foca a busca de issues
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onFocus = () => searchRef.current?.focus();
+    window.addEventListener("sentrylike:focus-search", onFocus);
+    return () => window.removeEventListener("sentrylike:focus-search", onFocus);
+  }, []);
+
   function resetList() {
     setItems([]);
     setCursor(null);
@@ -454,9 +463,10 @@ export function ProjectIssuesPage() {
         <div className="relative">
           <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            ref={searchRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar por título…"
+            placeholder="Buscar por título… ( / )"
             className="w-44 pl-8 md:w-56"
           />
         </div>
@@ -669,7 +679,14 @@ export function ProjectIssuesPage() {
 
       <Card>
         <CardContent className="p-0">
-          {isLoading && items.length === 0 ? (
+          {/* onboarding (Fase 10): projeto sem eventos → guia de integração */}
+          {items.length === 0 &&
+          !isLoading &&
+          !debouncedQ &&
+          status === "unresolved" &&
+          project?.dsn ? (
+            <ProjectEmptyState dsn={project.dsn} />
+          ) : isLoading && items.length === 0 ? (
             <div className="space-y-3 p-4">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />

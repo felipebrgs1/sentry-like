@@ -28,6 +28,7 @@
 | Performance: transactions/spans, waterfall, p50/p95/p99, web vitals, release-perf | ✅ |
 | Sourcemaps: upload (sentry-cli + dashboard), simbolização, frames similares, contexto | ✅ |
 | Replays: sessões por projeto, player básico (DOM + interações), expiração 7d            | ✅ |
+| Polimento F10: tema claro (toggle), onboarding com snippet, atalhos de teclado, empty states | ✅ |
 
 ---
 
@@ -112,14 +113,14 @@ O item mais difícil do roadmap — resolvido com um parser de sourcemap v3 (VLQ
 - [ ] **Cobertura de código** — stats de cobertura por release (o Sentry faz com monitores). 📋 planejado: exige pipeline de CI + agente de cobertura (c8/istanbul) e tem pouco valor num self-host sem CI configurada
 - [x] **Diferencial**: Replay em SQLite é inviável para volumes grandes — decisão consciente: segmentos em disco (BlobStore) + expiração em 7d (`REPLAY_RETENTION_DAYS`, retenção integrada ao `runRetention`)
 
-## Fase 10 — Polimento UI/UX 📋
+## Fase 10 — Polimento UI/UX 🧪
 
-- [ ] **Tema claro** (hoje dark-only)
-- [ ] **Onboarding** — snippet de código do SDK por linguagem após criar projeto
-- [ ] **Atalhos de teclado** — `g i` (issues), `/` (busca) etc.
-- [ ] **Responsivo/mobile** — hoje otimizado para desktop
-- [ ] **i18n** — pelo menos EN + PT-BR
-- [ ] **Empty states** — guias de integração quando projeto não tem eventos
+- [x] **Tema claro** — o CSS já definia `:root` light + `.dark`; removida a classe fixa do `index.html` e criado toggle (Sun/Moon) no header com persistência em localStorage (`lib/theme.ts`); default continua dark
+- [x] **Onboarding** — componente `SdkSnippet` com abas por linguagem (JS/React/Vue/Python/PHP/Ruby) + `ProjectEmptyState` (guia de 3 passos, botão copiar, comando de teste com o DSN) mostrado quando o projeto ainda não tem eventos
+- [x] **Atalhos de teclado** — sequência `g o/p/i/r/s` (navegação), `/` (foca a busca de issues via evento), `?` (painel de ajuda em Sheet); ignorados em inputs
+- [~] **Responsivo/mobile** — ajustes básicos (paddings do main, tabelas já com overflow-x-auto nativo, tabs com wrap, header colapsa o título); validação visual em telas pequenas fica pendente 🧪
+- [ ] **i18n** — 📋 planejado: todos os textos estão hardcoded em pt-BR; mecanismo de dicionário exigiria revisar ~15 páginas — sem valor imediato num self-host pt-BR
+- [x] **Empty states** — guia de integração quando o projeto não tem eventos (substitui o "nenhuma issue" genérico quando o projeto está vazio de verdade)
 
 ## Infra & qualidade (transversal) 📋
 
@@ -156,4 +157,5 @@ O item mais difícil do roadmap — resolvido com um parser de sourcemap v3 (VLQ
 3. **Sourcemaps (F8) antes do replay (F9)** — sourcemaps valem mais quando o produto é usado em produção com bundlers; replay é o item mais pesado do roadmap.
 4. **Cada fase deve terminar deployável** — nada de quebrar o `docker compose up` no meio do caminho.
 5. **F9 (replay) concluído** — player básico + expiração 7d; cobertura de código ficou 📋 (depende de pipeline de CI, sem valor num self-host sem CI)
-6. **F10 (polimento UI/UX) é o próximo** — tema claro, onboarding com snippet de SDK, atalhos de teclado, responsivo, i18n, empty states
+6. **F10 (polimento UI/UX) em andamento** — tema claro, onboarding, atalhos e empty states concluídos; responsivo 🧪 e i18n 📋 (textos hardcoded, sem valor imediato num self-host pt-BR)
+7. **Infra & qualidade é o próximo grande bloco** — testes (unit + integração), backup do SQLite e migrações com drizzle-kit; também "observabilidade do servidor" e rate limit global por IP
