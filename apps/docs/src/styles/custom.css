@@ -1,0 +1,12 @@
+/* Acento violeta — alinhado ao tema do dashboard (dark-only accent violeta). */
+:root[data-theme="dark"] {
+  --sl-color-accent-high: oklch(0.68 0.19 300);
+  --sl-color-accent: oklch(0.62 0.21 300);
+  --sl-color-accent-low: oklch(0.32 0.13 300);
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-high: oklch(0.45 0.22 300);
+  --sl-color-accent: oklch(0.52 0.23 300);
+  --sl-color-accent-low: oklch(0.88 0.09 300);
+}

@@ -38,6 +38,8 @@ setInterval(() => {
 
 // --- static dashboard (build de produção) ---
 const WEB_DIR = process.env.WEB_DIR ?? join(import.meta.dir, "../../web/dist");
+// --- documentação (Astro Starlight, base "/docs") ---
+const DOCS_DIR = process.env.DOCS_DIR ?? join(import.meta.dir, "../../docs/dist");
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript",
@@ -49,6 +51,36 @@ const MIME: Record<string, string> = {
   ".map": "application/json",
   ".woff2": "font/woff2",
 };
+
+/**
+ * Serve o build do Astro Starlight em /docs (base "/docs" → arquivos em DOCS_DIR
+ * sem o prefixo). /docs raiz redireciona para a primeira página.
+ */
+async function serveDocs(path: string, set: { status?: number | string; headers?: unknown }) {
+  const rel = path.replace(/^\/?docs\/?/, "") || "";
+  if (!rel) {
+    set.status = 301;
+    set.headers = { location: "/docs/intro/" };
+    return new Response(null);
+  }
+  const ext = rel.includes(".") ? rel.slice(rel.lastIndexOf(".")) : "";
+  let file = Bun.file(join(DOCS_DIR, rel));
+  let type = MIME[ext] ?? "application/octet-stream";
+  if (!ext || !(await file.exists())) {
+    // página (sem extensão) → index.html da pasta; senão o 404 do Starlight
+    file = Bun.file(join(DOCS_DIR, rel, "index.html"));
+    type = "text/html; charset=utf-8";
+    if (!(await file.exists())) {
+      file = Bun.file(join(DOCS_DIR, "404.html"));
+      if (!(await file.exists())) {
+        set.status = 404;
+        return "docs not built — run `bun run build`";
+      }
+      set.status = 404;
+    }
+  }
+  return new Response(file, { headers: { "content-type": type } });
+}
 
 const app = new Elysia()
   .use(
@@ -66,6 +98,8 @@ const app = new Elysia()
   )
   .get("/health", () => ({ ok: true }))
   .use(routes)
+  .get("/docs", ({ set }) => serveDocs("/docs", set))
+  .get("/docs/*", ({ path, set }) => serveDocs(path, set))
   .get("/*", async ({ path, set }) => {
     // path.join não trata "/" inicial como absoluto, então traversal colapsa em WEB_DIR
     const ext = path.includes(".") ? path.slice(path.lastIndexOf(".")) : "";

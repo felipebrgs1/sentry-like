@@ -10,7 +10,7 @@
     "oxc",
     "typescript"
   ],
-  "ignorePatterns": ["node_modules/**", "dist/**", ".turbo/**", "bun.lock"],
+  "ignorePatterns": ["node_modules/**", "dist/**", ".turbo/**", "bun.lock", "apps/docs/.astro/**"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"

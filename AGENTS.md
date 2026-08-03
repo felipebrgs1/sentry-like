@@ -31,7 +31,8 @@ apps/web/            # React 19 + TanStack Router (code-based) + TanStack Query
     pages/           # 1 arquivo por rota (Overview, Projects, ProjectIssues, IssueDetail, Login)
     components/      # AppSidebar, AppLayout, BarChart, LevelBadge
     components/ui/   # shadcn (vendored, NÃO editar — override de lint)
-    lib/             # format.ts (timeAgo/fmtTime), api.ts (fetch + token)
+    lib/             # format.ts (timeAgo/fmtTime), api.ts (fetch + token), theme.ts, replay.ts
+apps/docs/           # documentação (Astro Starlight, base "/docs"; conteúdo em src/content/docs)
 packages/shared/     # tipos do protocolo Sentry + tipos da API (consumido por api e web)
 scripts/             # send-test-event.ts (demo, zero deps)
 ```
@@ -40,8 +41,8 @@ scripts/             # send-test-event.ts (demo, zero deps)
 
 ```bash
 bun install                  # instala
-bun run dev                  # turbo dev: API :3001 + Vite :5173 (proxy /api e /v1 → :3001)
-bun run build                # turbo build (só o web precisa; API roda TS direto no Bun)
+bun run dev                  # turbo dev: API :3001 + Vite :5173 (proxy /api e /v1 → :3001) + Astro :4321 (docs em /docs)
+bun run build                # turbo build (web = vite; docs = astro; API roda TS direto no Bun)
 bun run typecheck            # tsc --noEmit (TypeScript 7)
 bun run lint                 # oxlint (raiz = monorepo inteiro)
 bun run format / format:check  # oxfmt
