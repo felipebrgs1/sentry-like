@@ -55,6 +55,7 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
         status: "unresolved", // regression reopens
         title: existing.title || title,
         level,
+        environment: event.environment ?? existing.environment,
       })
       .where(eq(issues.id, existing.id))
       .run();
@@ -69,6 +70,7 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
         culprit: eventCulprit(event),
         level,
         status: "unresolved",
+        environment: event.environment ?? null,
         firstSeen: ts,
         lastSeen: ts,
         eventCount: 1,
@@ -85,6 +87,7 @@ export function storeEvent(projectId: number, event: SentryEvent): string {
       issueId,
       timestamp: ts,
       level,
+      environment: event.environment ?? null,
       message: title,
       payload: JSON.stringify(event),
     })

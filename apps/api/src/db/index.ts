@@ -49,4 +49,16 @@ CREATE INDEX IF NOT EXISTS events_project_ts ON events(project_id, timestamp);
 CREATE INDEX IF NOT EXISTS events_issue ON events(issue_id);
 `);
 
+// Colunas adicionadas depois do schema inicial — idempotente em DBs existentes
+for (const stmt of [
+  "ALTER TABLE issues ADD COLUMN environment TEXT",
+  "ALTER TABLE events ADD COLUMN environment TEXT",
+]) {
+  try {
+    sqlite.exec(stmt);
+  } catch {
+    // coluna já existe
+  }
+}
+
 export const db = drizzle(sqlite, { schema });

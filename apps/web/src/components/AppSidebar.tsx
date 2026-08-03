@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bug, FolderKanban, LayoutGrid, LogOut } from "lucide-react";
+import { Bug, ChartNoAxesColumn, FolderKanban, LayoutGrid, LogOut } from "lucide-react";
 import type { ProjectWithStats } from "@sentrylike/shared";
 import { api, logout } from "@/api";
 import {
@@ -57,7 +57,19 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton render={<Link to="/" />} isActive={pathname === "/"}>
+                <SidebarMenuButton
+                  render={<Link to="/" />}
+                  isActive={pathname === "/"}
+                >
+                  <ChartNoAxesColumn />
+                  <span>Visão geral</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link to="/projects" />}
+                  isActive={pathname.startsWith("/projects") && pathname !== "/projects/"}
+                >
                   <LayoutGrid />
                   <span>Projetos</span>
                 </SidebarMenuButton>

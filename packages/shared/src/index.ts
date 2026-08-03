@@ -80,7 +80,7 @@ export interface ProjectWithStats extends Project {
   events24h: number;
 }
 
-export type IssueStatus = "unresolved" | "resolved";
+export type IssueStatus = "unresolved" | "resolved" | "ignored";
 
 export interface Issue {
   id: number;
@@ -90,6 +90,7 @@ export interface Issue {
   culprit: string | null;
   level: string;
   status: IssueStatus;
+  environment: string | null;
   firstSeen: number;
   lastSeen: number;
   eventCount: number;
@@ -100,9 +101,30 @@ export interface EventSummary {
   issueId: number | null;
   timestamp: number;
   level: string;
+  environment: string | null;
   message: string | null;
 }
 
 export interface EventDetail extends EventSummary {
   payload: SentryEvent;
+}
+
+export interface DayCount {
+  date: string;
+  count: number;
+}
+
+export interface ProjectStat {
+  id: number;
+  name: string;
+  openIssues: number;
+  events24h: number;
+}
+
+export interface OverviewStats {
+  openIssues: number;
+  events24h: number;
+  events7d: number;
+  eventsPerDay: DayCount[];
+  projects: ProjectStat[];
 }

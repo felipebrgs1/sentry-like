@@ -18,9 +18,10 @@ export const issues = sqliteTable(
     title: text("title").notNull(),
     culprit: text("culprit"),
     level: text("level").notNull().default("error"),
-    status: text("status", { enum: ["unresolved", "resolved"] })
+    status: text("status", { enum: ["unresolved", "resolved", "ignored"] })
       .notNull()
       .default("unresolved"),
+    environment: text("environment"),
     firstSeen: integer("first_seen").notNull(),
     lastSeen: integer("last_seen").notNull(),
     eventCount: integer("event_count").notNull().default(0),
@@ -45,6 +46,7 @@ export const events = sqliteTable(
     timestamp: integer("timestamp").notNull(),
     level: text("level").notNull().default("error"),
     message: text("message"),
+    environment: text("environment"),
     payload: text("payload").notNull(),
   },
   (t) => [

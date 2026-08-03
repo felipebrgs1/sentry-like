@@ -8,6 +8,7 @@ import {
 import { getToken } from "./api";
 import { AppLayout } from "./components/AppLayout";
 import { LoginPage } from "./pages/Login";
+import { OverviewPage } from "./pages/Overview";
 import { ProjectsPage } from "./pages/Projects";
 import { ProjectIssuesPage } from "./pages/ProjectIssues";
 import { IssueDetailPage } from "./pages/IssueDetail";
@@ -43,6 +44,12 @@ const appRoute = createRoute({
 const indexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
+  component: OverviewPage,
+});
+
+const projectsIndexRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/projects",
   component: ProjectsPage,
 });
 
@@ -60,7 +67,7 @@ const issueRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([indexRoute, projectRoute, issueRoute]),
+  appRoute.addChildren([indexRoute, projectsIndexRoute, projectRoute, issueRoute]),
 ]);
 
 export const router = createRouter({ routeTree });
