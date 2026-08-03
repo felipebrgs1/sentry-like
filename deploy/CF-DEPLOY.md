@@ -131,3 +131,24 @@ parar de trackear (o arquivo local continua).
 - **D1 tem latência de rede** por query (na VPS é arquivo local) — ok para uso micro.
 - **Rate limit em KV é eventual** (isolates efêmeros) — suficiente para uso pessoal.
 - **Blobs** (attachments/replays) vão para R2; a pasta local `DATA_DIR` não existe no Worker.
+
+## Esqueci a senha (sem email)
+
+Não há email — o reset é por **prova de posse** (quem tem acesso ao deploy/conta):
+
+**Cloudflare:**
+```bash
+echo 'senha-temporaria' | wrangler secret put RESET_PASSWORD
+wrangler deploy          # o boot aplica a temporária ao owner
+# login com a temporária → Configurações → Trocar senha
+wrangler secret delete RESET_PASSWORD
+```
+Nada é exibido em log — quem seta o secret é quem tem acesso à conta (posse).
+
+**VPS (shell = posse):**
+```bash
+DATABASE_PATH=/data/sentrylike.db bun scripts/reset-password.ts email nova-senha
+```
+
+> ⚠️ Não existe rota pública de reset: qualquer mecanismo que "resetasse e mostrasse"
+> a senha seria tomado por qualquer um. O env/secret é a prova de posse correta.

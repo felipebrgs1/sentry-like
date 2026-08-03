@@ -19,6 +19,77 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 
+function ChangePassword() {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const change = useMutation({
+    mutationFn: () =>
+      api("/v1/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ currentPassword: current, newPassword: next }),
+      }),
+    onSuccess: () => {
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      setMsg("Senha alterada ✅");
+    },
+    onError: (e) => setMsg(e instanceof Error ? e.message : "falha ao alterar"),
+  });
+
+  return (
+    <Card>
+      <CardHeader className="py-3">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <KeyRound className="size-4" /> Trocar senha
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="cur">Senha atual</Label>
+            <Input
+              id="cur"
+              type="password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="nxt">Nova senha</Label>
+            <Input
+              id="nxt"
+              type="password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cnf">Confirmar</Label>
+            <Input
+              id="cnf"
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+          </div>
+        </div>
+        <Button
+          size="sm"
+          disabled={change.isPending || !current || next.length < 6 || next !== confirm}
+          onClick={() => change.mutate()}
+        >
+          Salvar nova senha
+        </Button>
+        {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
 function TwoFactor() {
   const qc = useQueryClient();
   const [secret, setSecret] = useState<string | null>(null);
@@ -400,7 +471,8 @@ export function SettingsPage() {
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
           <TabsTrigger value="tokens">API tokens</TabsTrigger>
         </TabsList>
-        <TabsContent value="perfil" className="mt-4">
+        <TabsContent value="perfil" className="mt-4 space-y-4">
+          <ChangePassword />
           <TwoFactor />
         </TabsContent>
         <TabsContent value="usuarios" className="mt-4">

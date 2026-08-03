@@ -120,3 +120,22 @@ export async function disable2fa(
   }
   return { ok: true };
 }
+
+/** POST /v1/auth/change-password — troca a senha do usuário logado */
+export async function changePassword(
+  ctx: Pick<HandlerContext, "store" | "set" | "body"> & {
+    body: { currentPassword: string; newPassword: string };
+  },
+) {
+  const user = currentUser(ctx)!;
+  const { currentPassword, newPassword } = ctx.body ?? {};
+  if (!currentPassword || !newPassword || newPassword.length < 6) {
+    ctx.set.status = 400;
+    return { error: "senha atual e nova (min 6) são obrigatórias" };
+  }
+  if (!(await userService.changePassword(user.id, currentPassword, newPassword))) {
+    ctx.set.status = 400;
+    return { error: "senha atual incorreta" };
+  }
+  return { ok: true };
+}

@@ -42,6 +42,13 @@ export async function ensureBootstrap(): Promise<void> {
   ) {
     await createOwner(process.env.ADMIN_USER.trim(), process.env.ADMIN_PASSWORD.trim());
   }
+
+  // reset de senha via env (sem email) — ver applyResetPassword()
+  if (await applyResetPassword()) {
+    console.error(
+      "[sentrylike] RESET_PASSWORD aplicada ao owner — faça login com a temporária, troque no dashboard e delete o secret.",
+    );
+  }
 }
 
 async function createOwner(username: string, password: string): Promise<void> {
@@ -73,6 +80,49 @@ export async function needsSetup(): Promise<boolean> {
     .from(users)
     .get();
   return (count?.c ?? 0) === 0;
+}
+
+/**
+ * Reset de senha por env (sem email): se RESET_PASSWORD estiver definido no
+ * ambiente, a senha do owner é sobrescrita no boot. NADA é exibido em log —
+ * quem tem acesso ao env/deploy é quem tem posse da conta (prova de posse).
+ * Após logar com a temporária, troque no front e delete o secret.
+ */
+export async function applyResetPassword(): Promise<boolean> {
+  const temp = process.env.RESET_PASSWORD?.trim();
+  if (!temp) return false;
+  const owner = await db
+    .select()
+    .from(users)
+    .where(eq(users.isOwner, 1))
+    .orderBy(users.createdAt)
+    .limit(1)
+    .get();
+  if (!owner) return false;
+  await db
+    .update(users)
+    .set({ passwordHash: await hashPassword(temp) })
+    .where(eq(users.id, owner.id))
+    .run();
+  return true;
+}
+
+/** Troca a senha do usuário logado (exige a senha atual). */
+export async function changePassword(
+  userId: number,
+  currentPassword: string,
+  newPassword: string,
+): Promise<boolean> {
+  const user = await getUserById(userId);
+  if (!user) return false;
+  if (!(await verifyPassword(currentPassword, user.passwordHash))) return false;
+  if (newPassword.length < 6) return false;
+  await db
+    .update(users)
+    .set({ passwordHash: await hashPassword(newPassword) })
+    .where(eq(users.id, userId))
+    .run();
+  return true;
 }
 
 /** Onboarding: cria o primeiro usuário (owner). Só funciona com zero usuários. */

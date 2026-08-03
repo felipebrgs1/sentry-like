@@ -48,4 +48,14 @@ export const authProtectedRoutes = new Elysia({ prefix: "/v1" })
   })
   .post("/auth/2fa/disable", ({ store, set, body }) => user.disable2fa({ store, set, body }), {
     body: t.Object({ code: t.String() }),
-  });
+  })
+  .post(
+    "/auth/change-password",
+    ({ store, set, body }) => user.changePassword({ store, set, body }),
+    {
+      body: t.Object({
+        currentPassword: t.String(),
+        newPassword: t.String({ minLength: 6 }),
+      }),
+    },
+  );
