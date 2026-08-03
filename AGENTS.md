@@ -43,6 +43,7 @@ scripts/             # send-test-event.ts (demo, zero deps)
 bun install                  # instala
 bun run dev                  # turbo dev: API :3001 + Vite :5173 (proxy /api e /v1 → :3001) + Astro :4321 (docs em /docs)
 bun run build                # turbo build (web = vite; docs = astro; API roda TS direto no Bun)
+bun run build:cf             # build + copia docs/dist → web/dist/docs (deploy Cloudflare Workers)
 bun run typecheck            # tsc --noEmit (TypeScript 7)
 bun run lint                 # oxlint (raiz = monorepo inteiro)
 bun run format / format:check  # oxfmt

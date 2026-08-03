@@ -21,7 +21,7 @@ export interface Env {
   DB: unknown;
   R2?: unknown;
   RATE_LIMIT_KV?: unknown;
-  ASSETS: { fetch(request: Request): Promise<Response> };
+  ASSETS: { fetch(input: string | URL | Request): Promise<Response> };
 }
 
 const app = new Elysia({ adapter: CloudflareAdapter })
@@ -74,7 +74,23 @@ export default {
       url.pathname.startsWith("/v1/") ||
       url.pathname === "/health";
     if (!isApi && request.method === "GET") {
-      return env.ASSETS.fetch(request);
+      // docs (Astro Starlight): /docs → primeira página; 404 → página 404 do docs
+      if (url.pathname === "/docs" || url.pathname === "/docs/") {
+        return Response.redirect(new URL("/docs/intro/", url).href, 301);
+      }
+      const res = await env.ASSETS.fetch(request);
+      if (res.status === 404) {
+        if (url.pathname.startsWith("/docs/")) {
+          const nf = await env.ASSETS.fetch(new URL("/docs/404.html", url).href);
+          return new Response(nf.body, {
+            status: 404,
+            headers: { "content-type": "text/html; charset=utf-8" },
+          });
+        }
+        // SPA fallback (not_found_handling = "none"; o worker controla)
+        return env.ASSETS.fetch(new URL("/index.html", url).href);
+      }
+      return res;
     }
     return app.handle(request);
   },

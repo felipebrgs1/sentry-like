@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "build:cf": "bun run build && bun scripts/cf-assets.ts",
     "typecheck": "turbo typecheck",
     "lint": "oxlint",
     "format": "oxfmt --write apps packages scripts",
