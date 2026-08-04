@@ -30,7 +30,7 @@ apps/web/            # React 19 + TanStack Router (code-based) + TanStack Query
     router.tsx       # rotas code-based; layout pathless id: "_app" (obrigatório _)
     pages/           # 1 arquivo por rota (Overview, Projects, ProjectIssues, IssueDetail, Login)
     components/      # AppSidebar, AppLayout, BarChart, LevelBadge
-    components/ui/   # shadcn (vendored, NÃO editar — override de lint)
+    components/ui/   # design system próprio (base-ui + tailwind, SEM shadcn) — editar à vontade
     lib/             # format.ts (timeAgo/fmtTime), api.ts (fetch + token), theme.ts, replay.ts
 apps/docs/           # documentação (Astro Starlight, base "/docs"; conteúdo em src/content/docs)
 packages/shared/     # tipos do protocolo Sentry + tipos da API (consumido por api e web)
@@ -98,10 +98,10 @@ Regras:
 - **TanStack Router code-based**: `router.tsx` declara `createRootRoute` → `createRoute` (layout pathless com **`id: "_app"`** — o id PRECISA começar com `_`, senão vira segmento de URL; já foi bug) → `addChildren`.
 - `useParams({ from: "/_app/projects/$projectId" })` — o `from` usa o **id** da rota (com `/_app`).
 - `Link to` usa o **full path** (`/projects/$projectId`, sem `/_app`).
-- **shadcn base-nova**: componentes em `components/ui/` são gerados — não editar (override de lint já cobre). `asChild` NÃO existe nesta versão: usa `render={<Link/>}` (sidebar) ou estado controlado (sheet/dialog).
+- **Design system próprio** (remodel 2025): `components/ui/` são wrappers enxutos sobre `@base-ui/react` + tailwind — podem ser editados. Sem shadcn/cva/tw-animate-css. Variantes de Button/Badge/Tabs são maps de string simples. Popups (select/menu/tooltip) animam com `data-starting-style`/`data-ending-style` do base-ui. `asChild` NÃO existe no base-ui: usa `render={<Link/>}` ou estado controlado (sheet/dialog).
 - `Select` do base-nova emite `string | null` no `onValueChange` — tratar com `(v) => setX(v ?? "")`.
 - Queries com TanStack Query (`queryKey` por rota + filtros; `refetchInterval` para listas).
-- Tema: dark-only, accent violeta; `BarChart` é CSS puro (sem lib de gráfico — proposta leve).
+- Tema: dark-first violeta (tokens em `index.css`, incl. `--panel` da sidebar); light existe mas dark é a estrela. Sidebar custom em `AppSidebar.tsx` (dot colorido por projeto, rail w-60, overlay no mobile). `BarChart` é CSS puro (sem lib de gráfico — proposta leve).
 - `lib/api.ts`: token no localStorage, 401 → redireciona `/login`.
 
 ## 7. Convenções de código

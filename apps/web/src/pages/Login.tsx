@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Bug, KeyRound, Sparkles, UserRound } from "lucide-react";
+import { KeyRound, Sparkles, UserRound } from "lucide-react";
 import { login, setToken } from "../api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SentrylikeLogo } from "@/components/SentrylikeLogo";
 
 /**
  * Login com onboarding: se ainda não existe nenhum usuário, mostra o
@@ -55,32 +55,53 @@ export function LoginPage() {
     }
   }
 
-  if (mode === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <p className="text-sm text-muted-foreground">Carregando…</p>
-      </div>
-    );
-  }
-
   const isSetup = mode === "setup";
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
-          <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Bug className="size-5" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+      {/* fundo: glow violeta + grid sutil */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 45% at 50% 0%, color-mix(in oklch, var(--primary) 22%, transparent), transparent 70%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.35] dark:opacity-[0.18]"
+        style={{
+          backgroundImage:
+            "linear-gradient(color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
+          maskImage: "radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent)",
+          WebkitMaskImage: "radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent)",
+        }}
+      />
+
+      <div className="animate-fade-up relative w-full max-w-sm">
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_0_32px_-4px_var(--primary)]">
+            <SentrylikeLogo size={26} />
           </div>
-          <CardTitle>sentrylike</CardTitle>
-          <CardDescription>
-            {isSetup
-              ? "Primeiro acesso — crie a conta de administrador"
-              : "Entre com suas credenciais"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={submit} className="space-y-4">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">sentrylike</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {mode === "loading"
+                ? "Carregando…"
+                : isSetup
+                  ? "Primeiro acesso — crie a conta de administrador"
+                  : "Error tracking minimalista, no seu servidor"}
+            </p>
+          </div>
+        </div>
+
+        {mode !== "loading" && (
+          <form
+            onSubmit={submit}
+            className="space-y-4 rounded-2xl border bg-card/80 p-6 shadow-xl backdrop-blur-md"
+          >
             {isSetup && (
               <div className="space-y-2">
                 <Label htmlFor="name">Nome</Label>
@@ -130,6 +151,7 @@ export function LoginPage() {
             <Button
               type="submit"
               className="w-full"
+              size="lg"
               disabled={
                 loading ||
                 !username ||
@@ -140,8 +162,12 @@ export function LoginPage() {
               {loading ? "Aguarde…" : isSetup ? "Criar conta e entrar" : "Entrar"}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        )}
+
+        <p className="mt-6 text-center text-xs text-muted-foreground/70">
+          compatível com SDKs oficiais do Sentry
+        </p>
+      </div>
     </div>
   );
 }

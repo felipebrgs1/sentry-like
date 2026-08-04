@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, ShieldCheck, Trash2, Users } from "lucide-react";
+import { KeyRound, ShieldCheck, Trash2, UserRound, Users } from "lucide-react";
 import type { ApiToken, User } from "@sentrylike/shared";
 import { api } from "../api";
 import { Button } from "@/components/ui/button";
@@ -465,26 +465,43 @@ export function SettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="perfil">
-        <TabsList>
-          <TabsTrigger value="perfil">Perfil & 2FA</TabsTrigger>
-          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          <TabsTrigger value="tokens">API tokens</TabsTrigger>
+      <Tabs defaultValue="perfil" orientation="vertical" className="gap-6 max-md:flex-col">
+        <TabsList className="w-52 shrink-0 gap-0.5 self-start bg-transparent p-0 max-md:w-full">
+          <TabsTrigger
+            value="perfil"
+            className="justify-start rounded-lg px-3 py-2 data-active:bg-primary/15 data-active:font-medium data-active:shadow-none"
+          >
+            <UserRound /> Perfil & 2FA
+          </TabsTrigger>
+          <TabsTrigger
+            value="usuarios"
+            className="justify-start rounded-lg px-3 py-2 data-active:bg-primary/15 data-active:font-medium data-active:shadow-none"
+          >
+            <Users /> Usuários
+          </TabsTrigger>
+          <TabsTrigger
+            value="tokens"
+            className="justify-start rounded-lg px-3 py-2 data-active:bg-primary/15 data-active:font-medium data-active:shadow-none"
+          >
+            <KeyRound /> API tokens
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="perfil" className="mt-4 space-y-4">
-          <ChangePassword />
-          <TwoFactor />
-        </TabsContent>
-        <TabsContent value="usuarios" className="mt-4">
-          {isOwner ? (
-            <UsersTab />
-          ) : (
-            <p className="text-sm text-muted-foreground">Somente o owner gerencia usuários.</p>
-          )}
-        </TabsContent>
-        <TabsContent value="tokens" className="mt-4">
-          <TokensTab />
-        </TabsContent>
+        <div className="min-w-0 flex-1">
+          <TabsContent value="perfil" className="mt-0 space-y-4">
+            <ChangePassword />
+            <TwoFactor />
+          </TabsContent>
+          <TabsContent value="usuarios" className="mt-0">
+            {isOwner ? (
+              <UsersTab />
+            ) : (
+              <p className="text-sm text-muted-foreground">Somente o owner gerencia usuários.</p>
+            )}
+          </TabsContent>
+          <TabsContent value="tokens" className="mt-0">
+            <TokensTab />
+          </TabsContent>
+        </div>
       </Tabs>
     </div>
   );

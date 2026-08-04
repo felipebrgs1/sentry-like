@@ -44,7 +44,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -306,11 +305,11 @@ function EventView({ event }: { event: EventDetail }) {
               <CardTitle className="text-sm">Payload bruto do evento</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <ScrollArea className="h-[70vh]">
+              <div className="h-[70vh] overflow-y-auto">
                 <pre className="p-4 font-mono text-xs leading-relaxed text-muted-foreground">
                   {JSON.stringify(p, null, 2)}
                 </pre>
-              </ScrollArea>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -609,7 +608,7 @@ export function IssueDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[60vh]">
+            <div className="h-[60vh] overflow-y-auto">
               <div className="space-y-1 p-3">
                 {events?.map((e) => (
                   <button
@@ -637,7 +636,7 @@ export function IssueDetailPage() {
                   <p className="p-3 text-center text-muted-foreground">sem ocorrências</p>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
 

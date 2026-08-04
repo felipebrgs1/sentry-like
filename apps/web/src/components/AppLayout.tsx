@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate } from "@tanstack/react-router";
-import { Bug, Keyboard, Moon, Sun } from "lucide-react";
+import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Keyboard, Menu, Moon, Sun } from "lucide-react";
 import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { applyTheme, type Theme } from "@/lib/theme";
 
 const SHORTCUTS: Array<{ keys: string; action: string }> = [
@@ -18,6 +16,17 @@ const SHORTCUTS: Array<{ keys: string; action: string }> = [
   { keys: "/", action: "Focar a busca de issues" },
   { keys: "?", action: "Mostrar estes atalhos" },
 ];
+
+const CRUMB_LABELS: Record<string, string> = {
+  projects: "Projetos",
+  performance: "Performance",
+  settings: "Configurações",
+  issues: "Issue",
+  replays: "Replay",
+  alerts: "Alertas",
+  releases: "Releases",
+  sourcemaps: "Sourcemaps",
+};
 
 function isTypingTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
@@ -34,16 +43,21 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export function AppLayout() {
   const navigate = useNavigate();
+  const { location } = useRouterState();
   const [theme, setTheme] = useState<Theme>(() =>
     document.documentElement.classList.contains("dark") ? "dark" : "light",
   );
   const [helpOpen, setHelpOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
 
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
     applyTheme(next);
   }
+
+  // fecha a nav mobile ao trocar de rota
+  useEffect(() => setNavOpen(false), [location.pathname]);
 
   // atalhos de teclado (Fase 10)
   useEffect(() => {
@@ -86,42 +100,68 @@ export function AppLayout() {
     return () => window.removeEventListener("keydown", onKey);
   }, [navigate]);
 
+  const crumbs = location.pathname.split("/").filter(Boolean);
+
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
-            <SidebarTrigger />
-            <Separator orientation="vertical" className="h-6" />
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Bug className="size-4" />
-              <span className="hidden sm:inline">sentrylike</span>
-            </div>
-            <div className="ml-auto flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setHelpOpen(true)}
-                title="Atalhos de teclado (?)"
-              >
-                <Keyboard className="size-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleTheme}
-                title={theme === "dark" ? "Tema claro" : "Tema escuro"}
-              >
-                {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-              </Button>
-            </div>
-          </header>
-          <main className="flex-1 p-4 md:p-6">
-            <Outlet />
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+      <AppSidebar open={navOpen} onClose={() => setNavOpen(false)} />
+
+      <div className="flex min-h-screen flex-col md:pl-60">
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setNavOpen(true)}
+            aria-label="Abrir menu"
+          >
+            <Menu className="size-4" />
+          </Button>
+          <nav className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+            {crumbs.length === 0 ? (
+              <span className="font-medium text-foreground">Visão geral</span>
+            ) : (
+              crumbs.map((seg, i) => (
+                <span key={i} className="flex items-center gap-1.5">
+                  {i > 0 && <span className="text-muted-foreground/50">/</span>}
+                  <span
+                    className={
+                      i === crumbs.length - 1 ? "truncate font-medium text-foreground" : "truncate"
+                    }
+                  >
+                    {CRUMB_LABELS[seg] ?? (seg.length > 12 ? `#${seg}` : seg)}
+                  </span>
+                </span>
+              ))
+            )}
+          </nav>
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="hidden items-center gap-1.5 rounded-md border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
+              title="Atalhos de teclado (?)"
+            >
+              <Keyboard className="size-3.5" />
+              <kbd className="font-mono">?</kbd>
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+            >
+              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            </Button>
+          </div>
+        </header>
+
+        <main
+          key={location.pathname}
+          className="animate-fade-up mx-auto w-full max-w-7xl flex-1 p-4 md:p-6"
+        >
+          <Outlet />
+        </main>
+      </div>
 
       <Sheet open={helpOpen} onOpenChange={setHelpOpen}>
         <SheetContent side="right" className="w-80">
@@ -134,7 +174,7 @@ export function AppLayout() {
             {SHORTCUTS.map((s) => (
               <div
                 key={s.keys}
-                className="flex items-center justify-between rounded border px-3 py-2"
+                className="flex items-center justify-between rounded-lg border px-3 py-2"
               >
                 <span className="text-sm text-muted-foreground">{s.action}</span>
                 <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-xs">

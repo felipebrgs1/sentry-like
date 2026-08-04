@@ -20,15 +20,5 @@
     "react-in-jsx-scope": "off",
     // import de CSS é padrão do Vite (side-effect)
     "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }]
-  },
-  "overrides": [
-    {
-      // código gerado pelo shadcn — não mexemos no estilo dele
-      "files": ["apps/web/src/components/ui/**"],
-      "rules": {
-        "no-shadow": "off",
-        "jsx-a11y/label-has-associated-control": "off"
-      }
-    }
-  ]
+  }
 }

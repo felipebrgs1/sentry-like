@@ -1,22 +1,18 @@
-import { Bug, CircleX, Info, TriangleAlert } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-
-const CONFIG: Record<string, { icon: LucideIcon; cls: string }> = {
-  fatal: { icon: CircleX, cls: "bg-red-500/15 text-red-400 border-red-500/40" },
-  error: { icon: CircleX, cls: "bg-red-500/10 text-red-400 border-red-500/30" },
-  warning: { icon: TriangleAlert, cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
-  info: { icon: Info, cls: "bg-muted text-muted-foreground border-border" },
-  debug: { icon: Bug, cls: "bg-muted text-muted-foreground border-border" },
+const CONFIG: Record<string, { dot: string; text: string }> = {
+  fatal: { dot: "bg-fuchsia-400", text: "text-fuchsia-400" },
+  error: { dot: "bg-rose-400", text: "text-rose-400" },
+  warning: { dot: "bg-amber-400", text: "text-amber-400" },
+  info: { dot: "bg-sky-400", text: "text-sky-400" },
+  debug: { dot: "bg-slate-400", text: "text-muted-foreground" },
 };
 
+/** Badge de nível no estilo Sentry: dot colorido + label. */
 export function LevelBadge({ level }: { level: string }) {
   const c = CONFIG[level] ?? CONFIG.debug;
-  const Icon = c.icon;
   return (
-    <Badge variant="outline" className={`shrink-0 gap-1 ${c.cls}`}>
-      <Icon className="size-3" />
+    <span className={`inline-flex shrink-0 items-center gap-1.5 text-xs font-medium ${c.text}`}>
+      <span className={`size-1.5 rounded-full ${c.dot} shadow-[0_0_6px_0_currentColor]`} />
       {level}
-    </Badge>
+    </span>
   );
 }
