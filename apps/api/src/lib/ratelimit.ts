@@ -28,14 +28,19 @@ export interface RateLimiter {
   isLimited(projectId: number, category: RateCategory): Promise<boolean>;
 }
 
-class MemoryRateLimiter implements RateLimiter {
+export class MemoryRateLimiter implements RateLimiter {
   private buckets = new Map<string, number[]>();
 
+  constructor(
+    private readonly limit: number = RATE_LIMIT_PER_MIN,
+    private readonly now: () => number = Date.now,
+  ) {}
+
   async isLimited(projectId: number, category: RateCategory): Promise<boolean> {
-    const now = Date.now();
+    const now = this.now();
     const key = `${projectId}:${CATEGORY_KEY[category]}`;
     const recent = (this.buckets.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
-    if (recent.length >= RATE_LIMIT_PER_MIN) {
+    if (recent.length >= this.limit) {
       this.buckets.set(key, recent);
       return true;
     }

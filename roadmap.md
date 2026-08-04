@@ -126,7 +126,7 @@ O item mais difícil do roadmap — resolvido com um parser de sourcemap v3 (VLQ
 
 - [ ] **Migrações com drizzle-kit** — substituir `CREATE IF NOT EXISTS`/ALTER manual
 - [ ] **Backup** — script de snapshot do SQLite (VACUUM INTO) + retenção
-- [ ] **Testes** — unit (ingestão, fingerprint, rate limit) + integração (SDK → API → DB)
+- [x] **Testes** — unit (envelope, fingerprint, validação, rate limit com janela, prioridade, timeseries, senha PBKDF2, TOTP com referência RFC 6238, sourcemap VLQ, blob storage) + integração/E2E (ingestão via HTTP in-process, auth/2FA/tokens, issues & regressão/merge, performance/waterfall, alertas com webhook local, sessões/crash-free, replay, sourcemaps sentry-cli); `bun test --parallel` isola cada arquivo em DB temporário próprio (preload) — 135 testes
 - [ ] **Observabilidade do próprio servidor** — métricas de ingestão/latência em `/health`
 - [ ] **Rate limit global por IP** — além do por projeto
 - [x] **Cloudflare Workers como opção de deploy** — D1 (driver drizzle assíncrono), R2 (blobs), KV (rate limit), Static Assets (SPA), cron de retenção; VPS continua default via `bun run start`

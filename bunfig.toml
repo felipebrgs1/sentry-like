@@ -1,0 +1,5 @@
+# Bun config — test runner (bun test)
+[test]
+# Roda antes de cada arquivo de teste (em cada processo worker com --parallel):
+# isola o DB/blob em um diretório temporário por processo.
+preload = "./apps/api/test/preload.ts"

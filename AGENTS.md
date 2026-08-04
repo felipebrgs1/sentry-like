@@ -48,6 +48,9 @@ bun run typecheck            # tsc --noEmit (TypeScript 7)
 bun run lint                 # oxlint (raiz = monorepo inteiro)
 bun run format / format:check  # oxfmt
 bun run start                # sobe a API em produção (serve o build do web)
+bun run test                 # bun test --parallel (unit + integração; DB temp por arquivo)
+bun run test:unit            # só os unitários (apps/api/test/unit)
+bun run test:integration     # só os de integração (apps/api/test/integration)
 bun run demo:event <dsn>     # envia evento de teste sem SDK
 docker compose up -d --build # deploy (1 container; volume /data)
 ```
@@ -123,9 +126,16 @@ Regras:
 7. **Seed do projeto demo** só roda quando o DB está vazio — a key antiga continua valendo após rebuild (pegar do `/v1/projects`, não dos logs).
 8. Colunas novas em tabelas existentes: **sempre** adicionar o `ALTER TABLE ... ADD COLUMN` idempotente em `db/index.ts` (try/catch), senão DBs antigos quebram.
 
-## 9. Testes rápidos (sem framework de teste)
+## 9. Testes (automáticos)
 
-Smoke tests via `curl`/`bun -e` (não há vitest ainda — fase de testes está no roadmap):
+`bun test` (runner nativo, zero deps) com **isolamento por arquivo**: `bunfig.toml` → `[test] preload` cria um diretório temporário por processo (SQLite + blobs) e `--parallel` roda cada arquivo num processo próprio — nenhum teste enxerga dados de outro.
+
+- **Unit** (`apps/api/test/unit/`): envelope, fingerprint, validate, ratelimit (janela com `now` injetável), priority, timeseries, password, totp (validação cruzada com implementação de referência do RFC 6238), sourcemap (VLQ), storage.
+- **Integração** (`apps/api/test/integration/`): app Elysia in-process (`app.handle`, sem listen) com banco real; cobre ingestão (envelope/store/tunnel/gzip/rate limit HTTP/origin check), auth (login/2FA/tokens), projetos (rotate key, allowed_domains), issues (regressão, ignore com janela, merge, batch), performance, alertas (webhook local via `Bun.serve` + checks periódicos), sessões, replay e sourcemaps (sentry-cli).
+
+Dicas: `bun test --parallel apps/api/test/unit` para um subconjunto; `-t "nome"` filtra por nome. Rodar `bun run lint && bun run format && bun run typecheck` antes de terminar.
+
+Smoke tests manuais via curl (continuam úteis para cenário de deploy real):
 
 ```bash
 # subir API isolada

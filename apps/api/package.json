@@ -9,7 +9,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src",
     "format": "oxfmt --write src",
-    "format:check": "oxfmt --check src"
+    "format:check": "oxfmt --check src",
+    "test": "bun test --parallel test",
+    "test:unit": "bun test --parallel test/unit",
+    "test:integration": "bun test --parallel test/integration"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.2",
