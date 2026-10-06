@@ -18,7 +18,7 @@ let app: TestApp;
 let token: string;
 let project: { id: number; publicKey: string; orgId: number | null };
 
-const REPLAY_ID = "replay-test-0001";
+const REPLAY_ID = "0123456789abcdef0123456789abcdef"; // SDK real manda hex32
 
 /** Envelope com 2 itens: replay_event (metadados) + replay_recording (segmento base64). */
 function replayEnvelope(projectId: number, publicKey: string): string {

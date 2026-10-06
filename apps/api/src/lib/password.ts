@@ -56,3 +56,20 @@ export async function verifyPassword(password: string, stored: string): Promise<
   for (let i = 0; i < actual.length; i++) diff |= actual[i] ^ expected[i];
   return diff === 0;
 }
+
+/**
+ * Hash de token (sessão / API token) para guardar no banco: SHA-256 hex.
+ * Tokens são aleatórios de alta entropia — não precisam de salt/PBKDF2; o
+ * objetivo é que um dump do banco não entregue credenciais utilizáveis.
+ */
+export async function hashToken(token: string): Promise<string> {
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)),
+  );
+  return [...digest].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Já é um hash gerado por hashToken()? (migração de tokens em texto puro) */
+export function isTokenHash(value: string): boolean {
+  return /^[0-9a-f]{64}$/.test(value);
+}

@@ -383,8 +383,8 @@ export function ReleasesPage() {
                 </div>
               ) : (
                 <p className="p-4 text-center text-sm text-muted-foreground">
-                  Sem commits — configure o webhook de deploy:{" "}
-                  <code className="font-mono">POST /v1/webhooks/releases/:projectId</code>
+                  Sem commits — configure o webhook de deploy (assinado) nas configurações do
+                  projeto.
                 </p>
               )}
             </CardContent>

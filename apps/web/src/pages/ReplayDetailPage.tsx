@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import type { ReplayDetail } from "@sentrylike/shared";
 import { api } from "../api";
-import { ReplayEngine } from "../lib/replay";
+import { ReplayEngine, replaySrcDoc } from "../lib/replay";
 import { fmtTime } from "../lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,6 +93,22 @@ export function ReplayDetailPage() {
     return () => ro.disconnect();
   }, []);
 
+  // índice do evento de cada interação (para acender o pulso na timeline).
+  // Hooks ANTES do early return (Rules of Hooks).
+  const interactionIdx = useMemo(() => {
+    if (!replay || !engine) return [];
+    return replay.interactions.map((it) => {
+      const idx = engine.events.findIndex((e) => e.timestamp >= it.timestamp);
+      return { it, idx: idx === -1 ? total - 1 : idx };
+    });
+  }, [replay, engine, total]);
+
+  // documento do player: iframe sandbox (sem scripts, origem opaca) + CSP que
+  // bloqueia qualquer rede — o HTML vem do SDK de terceiros e, mesmo
+  // sanitizado, não pode rodar código nem fazer o navegador do viewer buscar
+  // URLs externas (vazamento de IP / tracking)
+  const srcDoc = useMemo(() => replaySrcDoc(html), [html]);
+
   if (isLoading || !replay || !engine) {
     return (
       <div className="space-y-4 p-6">
@@ -104,14 +120,6 @@ export function ReplayDetailPage() {
 
   const { viewport } = replay;
   const scale = Math.min(1, (containerW || 800) / Math.max(1, viewport.width));
-
-  // índice do evento de cada interação (para acender o pulso na timeline)
-  const interactionIdx = useMemo(() => {
-    return replay.interactions.map((it) => {
-      const idx = engine.events.findIndex((e) => e.timestamp >= it.timestamp);
-      return { it, idx: idx === -1 ? total - 1 : idx };
-    });
-  }, [replay.interactions, engine, total]);
 
   const activeClicks = interactionIdx.filter(({ idx }) => idx <= index && idx >= 0);
   const currentEventTs = engine.events[index]?.timestamp ?? startTs;
@@ -149,11 +157,13 @@ export function ReplayDetailPage() {
                       transformOrigin: "top left",
                     }}
                   >
-                    {/* html sanitizado pela engine (tags/atributos perigosos bloqueados) */}
-                    <div
-                      className="pointer-events-none select-none [&_*]:pointer-events-none"
+                    {/* html sanitizado pela engine, isolado em iframe sandbox + CSP */}
+                    <iframe
+                      title="Reprodução da sessão"
+                      sandbox=""
+                      srcDoc={srcDoc}
+                      className="pointer-events-none block select-none border-0 bg-white"
                       style={{ width: viewport.width, height: viewport.height }}
-                      dangerouslySetInnerHTML={{ __html: html }}
                     />
                     {activeClicks.map(({ it }, i) =>
                       it.kind === "click" && it.x != null && it.y != null ? (

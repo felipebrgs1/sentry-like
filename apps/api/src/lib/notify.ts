@@ -1,5 +1,6 @@
 import type { AlertRule, WebhookType } from "@sentrylike/shared";
-import { APP_URL } from "../config";
+import { APP_URL, allowPrivateWebhooks } from "../config";
+import { resolvesToPrivate, webhookUrlError } from "./netguard";
 
 /**
  * Envio de alertas para webhooks (genérico, Slack, Discord).
@@ -71,20 +72,34 @@ function formatBody(channel: WebhookType, p: AlertPayload): string {
   }
 }
 
-/** Envia o alerta; retorna { ok, status, body } para logar. */
+/**
+ * Envia o alerta; retorna { ok, status, body } para logar.
+ * Anti-SSRF: destino privado é recusado (checado de novo no envio, pois o DNS
+ * pode mudar), redirects não são seguidos e o corpo da resposta NUNCA volta
+ * para quem configurou o webhook — só o status HTTP.
+ */
 export async function sendAlert(
   rule: AlertRule,
   payload: AlertPayload,
 ): Promise<{ ok: boolean; status: number; body: string }> {
+  const allowPrivate = allowPrivateWebhooks();
+  const invalid = webhookUrlError(rule.webhookUrl, allowPrivate);
+  if (invalid) return { ok: false, status: 0, body: `bloqueado: ${invalid}` };
+  if (!allowPrivate && (await resolvesToPrivate(new URL(rule.webhookUrl).hostname))) {
+    return { ok: false, status: 0, body: "bloqueado: host resolve para rede privada" };
+  }
   try {
     const res = await fetch(rule.webhookUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: formatBody(rule.webhookType, payload),
+      redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
     });
-    const body = (await res.text()).slice(0, 500);
-    return { ok: res.ok, status: res.status, body };
+    await res.body?.cancel().catch(() => {});
+    return { ok: res.ok, status: res.status, body: `HTTP ${res.status}` };
   } catch (e) {
-    return { ok: false, status: 0, body: String(e).slice(0, 500) };
+    const name = e instanceof Error ? e.name : "Error";
+    return { ok: false, status: 0, body: name === "TimeoutError" ? "timeout" : "falha de rede" };
   }
 }

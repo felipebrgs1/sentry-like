@@ -1,4 +1,4 @@
-import { and, desc, eq, exists, gt, isNull, like, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, exists, gt, inArray, isNull, like, lt, or, sql } from "drizzle-orm";
 import type {
   DayCount,
   EventSummary,
@@ -136,9 +136,15 @@ export async function listProjectIssues(
   };
 }
 
-export async function recentIssues(status?: string, limit = 10): Promise<Issue[]> {
+/** `projectIds` null = todos os projetos (owner). */
+export async function recentIssues(
+  status?: string,
+  limit = 10,
+  projectIds: number[] | null = null,
+): Promise<Issue[]> {
   const now = Date.now();
   const conds = [isNull(issues.mergedInto)];
+  if (projectIds !== null) conds.push(inArray(issues.projectId, projectIds));
   if (issueStatus(status) === "unresolved") {
     conds.push(
       sql`(${issues.status} = 'unresolved' OR (${issues.status} = 'ignored' AND ${issues.ignoredUntil} IS NOT NULL AND ${issues.ignoredUntil} < ${now}))`,
@@ -253,7 +259,8 @@ export async function mergeIssues(targetId: number, ids: number[]): Promise<bool
   for (const id of ids) {
     if (id === targetId) continue;
     const r = await db.select().from(issues).where(eq(issues.id, id)).get();
-    if (r && r.mergedInto == null) sources.push(r);
+    // só mescla issues do MESMO projeto (eventos não podem trocar de projeto)
+    if (r && r.mergedInto == null && r.projectId === target.projectId) sources.push(r);
   }
   if (!sources.length) return false;
 
@@ -339,19 +346,23 @@ async function recomputeIssueStats(id: number) {
 
 export type BatchAction = "resolve" | "unresolve" | "ignore" | "seen" | "delete";
 
-export function batchUpdate(ids: number[], action: BatchAction, ignoreUntil: number | null = null) {
+export async function batchUpdate(
+  ids: number[],
+  action: BatchAction,
+  ignoreUntil: number | null = null,
+) {
   for (const id of ids) {
     if (action === "delete") {
-      deleteIssue(id);
+      await deleteIssue(id);
       continue;
     }
     if (action === "seen") {
-      setIssueSeen(id);
+      await setIssueSeen(id);
       continue;
     }
     const status: IssueStatus =
       action === "resolve" ? "resolved" : action === "ignore" ? "ignored" : "unresolved";
-    updateIssueStatus(id, status, status === "ignored" ? ignoreUntil : null);
+    await updateIssueStatus(id, status, status === "ignored" ? ignoreUntil : null);
   }
   return { ok: true };
 }

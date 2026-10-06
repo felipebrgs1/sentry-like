@@ -36,7 +36,20 @@ describe("BlobStore (disco)", () => {
   test("nome do arquivo é sanitizado (sem path traversal)", async () => {
     const data = new TextEncoder().encode("x");
     const path = await saveBlob(1, "attachments", "evt-safe", "../../etc/passwd", data);
-    expect(path).toBe("1/attachments/evt-safe/.._.._etc_passwd");
+    expect(path).toBe("1/attachments/evt-safe/__.._etc_passwd");
     expect(path).not.toContain("/../");
+  });
+
+  test("segmento eventId/subdir com traversal é recusado", async () => {
+    const data = new TextEncoder().encode("x");
+    for (const evil of ["../../../../tmp", "a/b", "..", "", "x".repeat(200)]) {
+      expect(saveBlob(1, "attachments", evil, "index.html", data)).rejects.toThrow();
+    }
+    expect(saveBlob(1, "../web", "evt", "index.html", data)).rejects.toThrow();
+  });
+
+  test("read/delete não saem de DATA_DIR", async () => {
+    expect(await readBlob("../../../../etc/hostname")).toBeNull();
+    await deleteBlob("../../../../tmp/nao-existe"); // não lança nem apaga fora
   });
 });

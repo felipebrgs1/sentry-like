@@ -60,7 +60,12 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type ProjectWithDsn = Omit<Project, "allowedDomains"> & { dsn: string; allowedDomains: string[] };
+type ProjectWithDsn = Omit<Project, "allowedDomains"> & {
+  dsn: string;
+  allowedDomains: string[];
+  /** só vem para owner; null = webhook de deploy desativado */
+  webhookSecret?: string | null;
+};
 
 const LEVELS = ["fatal", "error", "warning", "info", "debug"];
 const NEW_WINDOW_MS = 24 * 3600 * 1000;
@@ -118,6 +123,16 @@ function ProjectSettings({
       qc.invalidateQueries({ queryKey: ["projects"] });
       qc.invalidateQueries({ queryKey: ["project", String(project.id)] });
       onChanged();
+    },
+  });
+
+  const rotateSecret = useMutation({
+    mutationFn: () =>
+      api<{ webhookSecret: string }>(`/v1/projects/${project.id}/webhook-secret`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["project", String(project.id)] });
     },
   });
 
@@ -216,6 +231,50 @@ function ProjectSettings({
               <RotateCw /> Rotacionar chave
             </Button>
           </div>
+
+          {project.webhookSecret !== undefined && (
+            <>
+              <Separator />
+
+              <div className="space-y-2">
+                <Label>Webhook de deploy (GitHub / GitLab)</Label>
+                <code className="block overflow-x-auto rounded border bg-muted/40 px-2 py-1.5 font-mono text-xs text-muted-foreground">
+                  {`${window.location.origin}/v1/webhooks/releases/${project.id}`}
+                </code>
+                {project.webhookSecret ? (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Segredo — GitHub: campo <em>Secret</em> (content type{" "}
+                      <code>application/json</code>); GitLab: <em>Secret token</em>; CI/curl: header{" "}
+                      <code>X-Sentrylike-Token</code>.
+                    </p>
+                    <code className="block overflow-x-auto rounded border bg-muted/40 px-2 py-1.5 font-mono text-xs text-muted-foreground">
+                      {project.webhookSecret}
+                    </code>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Desativado: gere um segredo para aceitar pushes assinados.
+                  </p>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={rotateSecret.isPending}
+                  onClick={() => {
+                    if (
+                      !project.webhookSecret ||
+                      confirm("Rotacionar o segredo? Webhooks com o segredo antigo vão falhar.")
+                    ) {
+                      rotateSecret.mutate();
+                    }
+                  }}
+                >
+                  <RotateCw /> {project.webhookSecret ? "Rotacionar segredo" : "Gerar segredo"}
+                </Button>
+              </div>
+            </>
+          )}
 
           <Separator />
 

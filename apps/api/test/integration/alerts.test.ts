@@ -21,6 +21,9 @@ import {
   seedProject,
 } from "../helpers";
 
+// o receptor de webhook do teste roda em localhost (bloqueado por padrão — SSRF)
+process.env.ALLOW_PRIVATE_WEBHOOKS = "1";
+
 let app: TestApp;
 let token: string;
 let project: { id: number; publicKey: string; orgId: number | null };

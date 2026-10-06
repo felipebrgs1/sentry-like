@@ -3,6 +3,7 @@ import { db } from "../db";
 import { sessions } from "../db/schema";
 import { SESSION_TTL_MS } from "../config";
 import { authenticate, loginUser } from "./user.service";
+import { hashToken } from "../lib/password";
 import type { DbUser } from "./user.service";
 
 export function bearerToken(request: Request): string | null {
@@ -18,12 +19,18 @@ export async function checkCredentials(
   return loginUser(email, password, totpCode);
 }
 
+/** Cria a sessão: o cliente recebe o token cru; o banco guarda só o hash. */
 export async function createSession(userId: number): Promise<string> {
   const token = crypto.randomUUID();
   const now = Date.now();
   await db
     .insert(sessions)
-    .values({ token, userId, createdAt: now, expiresAt: now + SESSION_TTL_MS })
+    .values({
+      token: await hashToken(token),
+      userId,
+      createdAt: now,
+      expiresAt: now + SESSION_TTL_MS,
+    })
     .run();
   // limpeza oportunista de sessões expiradas
   await db.delete(sessions).where(lt(sessions.expiresAt, now)).run();
@@ -37,11 +44,18 @@ export async function authenticateUser(request: Request): Promise<DbUser | null>
 
 export async function isSessionValid(token: string | null): Promise<boolean> {
   if (!token) return false;
-  const row = await db.select().from(sessions).where(eq(sessions.token, token)).get();
+  const row = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.token, await hashToken(token)))
+    .get();
   return !!row && row.expiresAt > Date.now();
 }
 
 export async function destroySession(token: string | null) {
   if (!token) return;
-  await db.delete(sessions).where(eq(sessions.token, token)).run();
+  await db
+    .delete(sessions)
+    .where(eq(sessions.token, await hashToken(token)))
+    .run();
 }

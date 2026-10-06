@@ -200,7 +200,11 @@ export async function saveFile(input: {
   }
 
   const isSourcemap = isMapName(name);
-  const storedPath = await saveBlob(input.projectId, "sourcemaps", release, name, input.content);
+  // diretório único por upload: o nome da release não é um segmento de caminho
+  // seguro, e reaproveitar o caminho fazia o deleteBlob(existing) abaixo apagar
+  // o arquivo recém-gravado num re-upload com conteúdo novo
+  const blobDir = crypto.randomUUID().replace(/-/g, "");
+  const storedPath = await saveBlob(input.projectId, "sourcemaps", blobDir, name, input.content);
 
   if (existing) {
     await deleteBlob(existing.storedPath).catch(() => {});

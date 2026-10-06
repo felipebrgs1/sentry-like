@@ -23,10 +23,10 @@ export const authPublicRoutes = new Elysia()
 export const authProtectedRoutes = new Elysia({ prefix: "/v1" })
   .onBeforeHandle(authGuard)
   .post("/auth/logout", ({ request }) => auth.logout({ request }))
-  .get("/auth/me", ({ store }) => auth.me({ store }))
+  .get("/auth/me", ({ request }) => auth.me({ request }))
   // usuários (owner)
-  .get("/users", ({ store, set }) => user.listUsers({ store, set }))
-  .post("/users", ({ store, set, body }) => user.createUser({ store, set, body }), {
+  .get("/users", ({ request, set }) => user.listUsers({ request, set }))
+  .post("/users", ({ request, set, body }) => user.createUser({ request, set, body }), {
     body: t.Object({
       email: t.String(),
       name: t.String(),
@@ -34,24 +34,26 @@ export const authProtectedRoutes = new Elysia({ prefix: "/v1" })
       isOwner: t.Optional(t.Union([t.Literal(0), t.Literal(1)])),
     }),
   })
-  .delete("/users/:id", ({ store, set, params }) => user.deleteUser({ store, set, params }))
+  .delete("/users/:id", ({ request, set, params }) => user.deleteUser({ request, set, params }))
   // api tokens
-  .get("/api-tokens", ({ store }) => user.listTokens({ store }))
-  .post("/api-tokens", ({ store, set, body }) => user.createToken({ store, set, body }), {
+  .get("/api-tokens", ({ request }) => user.listTokens({ request }))
+  .post("/api-tokens", ({ request, set, body }) => user.createToken({ request, set, body }), {
     body: t.Object({ name: t.String({ minLength: 1, maxLength: 80 }) }),
   })
-  .delete("/api-tokens/:id", ({ store, set, params }) => user.deleteToken({ store, set, params }))
+  .delete("/api-tokens/:id", ({ request, set, params }) =>
+    user.deleteToken({ request, set, params }),
+  )
   // 2FA
-  .post("/auth/2fa/enable", ({ store }) => user.enable2fa({ store }))
-  .post("/auth/2fa/confirm", ({ store, set, body }) => user.confirm2fa({ store, set, body }), {
+  .post("/auth/2fa/enable", ({ request }) => user.enable2fa({ request }))
+  .post("/auth/2fa/confirm", ({ request, set, body }) => user.confirm2fa({ request, set, body }), {
     body: t.Object({ code: t.String() }),
   })
-  .post("/auth/2fa/disable", ({ store, set, body }) => user.disable2fa({ store, set, body }), {
+  .post("/auth/2fa/disable", ({ request, set, body }) => user.disable2fa({ request, set, body }), {
     body: t.Object({ code: t.String() }),
   })
   .post(
     "/auth/change-password",
-    ({ store, set, body }) => user.changePassword({ store, set, body }),
+    ({ request, set, body }) => user.changePassword({ request, set, body }),
     {
       body: t.Object({
         currentPassword: t.String(),

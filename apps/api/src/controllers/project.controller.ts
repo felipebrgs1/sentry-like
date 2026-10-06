@@ -2,25 +2,21 @@ import type { HandlerContext } from "./types";
 import * as projectService from "../services/project.service";
 import * as issueService from "../services/issue.service";
 import * as userService from "../services/user.service";
+import { accessibleProjectIds } from "../services/access.service";
+import { currentUser } from "../middleware/auth";
 import type { ProjectWithStats } from "@sentrylike/shared";
 
-/** Owner pode tudo; mutações de projeto (criar/renomear/rotacionar/deletar) são owner-only. */
-function requireOwner(ctx: Pick<HandlerContext, "store" | "set">): boolean {
-  if (!ctx.store.user?.isOwner) {
-    ctx.set.status = 403;
-    return false;
-  }
-  return true;
-}
+// Autorização (acesso ao projeto / owner-only) é feita nos guards das rotas
+// (middleware/access.ts) — aqui o projeto já é acessível ao usuário.
 
 /** GET /v1/projects — com DSN e contadores (filtrado pela org do usuário) */
 export async function list({
   request,
-  store,
-}: Pick<HandlerContext, "request" | "store">): Promise<ProjectWithStats[]> {
+}: Pick<HandlerContext, "request">): Promise<ProjectWithStats[]> {
   const origin = new URL(request.url).origin;
+  const scope = await accessibleProjectIds(currentUser(request));
   const projects = await projectService.listProjects();
-  const visible = store.user?.isOwner ? projects : await filterByOrg(projects, store.user?.id ?? 0);
+  const visible = scope === null ? projects : projects.filter((p) => scope.includes(p.id));
   const out: ProjectWithStats[] = [];
   for (const p of visible) {
     out.push({
@@ -33,22 +29,8 @@ export async function list({
   return out;
 }
 
-async function filterByOrg(
-  all: Awaited<ReturnType<typeof projectService.listProjects>>,
-  userId: number,
-) {
-  const orgs = await userService.listUserOrgs(userId);
-  const orgIds = new Set(orgs.map((o) => o.id));
-  return all.filter((p) => p.orgId != null && orgIds.has(p.orgId));
-}
-
-/** POST /v1/projects */
-export async function create({
-  body,
-  store,
-  set,
-}: { body: { name: string } } & Pick<HandlerContext, "store" | "set">) {
-  if (!requireOwner({ store, set })) return { error: "owner only" };
+/** POST /v1/projects (owner) */
+export async function create({ body }: { body: { name: string } }) {
   const project = await projectService.createProject(body.name);
   // projeto entra na org default
   const orgId = await userService.defaultOrgId();
@@ -56,26 +38,24 @@ export async function create({
   return project;
 }
 
-/** GET /v1/projects/:id — com DSN e domínios permitidos */
+/** GET /v1/projects/:id — com DSN, domínios permitidos e (owner) segredo do webhook */
 export async function get({
   params,
   request,
   set,
-  store,
-}: Pick<HandlerContext, "params" | "request" | "set" | "store">) {
+}: Pick<HandlerContext, "params" | "request" | "set">) {
   const p = await projectService.getProject(Number(params.id));
   if (!p) {
     set.status = 404;
     return { error: "not found" };
   }
-  if (!(await userService.hasOrgAccess(store.user!, p.orgId))) {
-    set.status = 403;
-    return { error: "forbidden" };
-  }
   return {
     ...p,
     dsn: projectService.buildDsn(new URL(request.url).origin, p.publicKey, p.id),
     allowedDomains: projectService.getAllowedDomains(p),
+    webhookSecret: currentUser(request).isOwner
+      ? await projectService.getWebhookSecret(p.id)
+      : undefined,
   };
 }
 
@@ -135,16 +115,14 @@ export async function releases({ params }: Pick<HandlerContext, "params">) {
   return projectService.projectReleases(Number(params.id));
 }
 
-/** PATCH /v1/projects/:id — renomear e/ou atualizar domínios permitidos */
+/** PATCH /v1/projects/:id (owner) — renomear e/ou atualizar domínios permitidos */
 export async function update({
   params,
   body,
   set,
-  store,
-}: Pick<HandlerContext, "params" | "body" | "set" | "store"> & {
+}: Pick<HandlerContext, "params" | "body" | "set"> & {
   body: { name?: string; allowedDomains?: string[] };
 }) {
-  if (!requireOwner({ store, set })) return { error: "owner only" };
   const project = await projectService.getProject(Number(params.id));
   if (!project) {
     set.status = 404;
@@ -162,13 +140,8 @@ export async function update({
   return { ok: true };
 }
 
-/** POST /v1/projects/:id/rotate-key */
-export async function rotateKey({
-  params,
-  set,
-  store,
-}: Pick<HandlerContext, "params" | "set" | "store">) {
-  if (!requireOwner({ store, set })) return { error: "owner only" };
+/** POST /v1/projects/:id/rotate-key (owner) */
+export async function rotateKey({ params, set }: Pick<HandlerContext, "params" | "set">) {
   if (!(await projectService.getProject(Number(params.id)))) {
     set.status = 404;
     return { error: "not found" };
@@ -176,13 +149,17 @@ export async function rotateKey({
   return { publicKey: await projectService.rotateProjectKey(Number(params.id)) };
 }
 
-/** DELETE /v1/projects/:id */
-export async function remove({
-  params,
-  set,
-  store,
-}: Pick<HandlerContext, "params" | "set" | "store">) {
-  if (!requireOwner({ store, set })) return { error: "owner only" };
+/** POST /v1/projects/:id/webhook-secret (owner) — gera/rotaciona o segredo do webhook de deploy */
+export async function rotateWebhookSecret({ params, set }: Pick<HandlerContext, "params" | "set">) {
+  if (!(await projectService.getProject(Number(params.id)))) {
+    set.status = 404;
+    return { error: "not found" };
+  }
+  return { webhookSecret: await projectService.rotateWebhookSecret(Number(params.id)) };
+}
+
+/** DELETE /v1/projects/:id (owner) */
+export async function remove({ params, set }: Pick<HandlerContext, "params" | "set">) {
   if (!(await projectService.deleteProject(Number(params.id)))) {
     set.status = 404;
     return { error: "not found" };

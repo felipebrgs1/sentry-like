@@ -53,3 +53,6 @@ bun run start   # sobe a API servindo tudo
 2. Configure `APP_URL` para links corretos nos alertas
 3. Backupe o volume (`/data`) — o roadmap prevê script de snapshot (VACUUM INTO) na fase de infra
 4. Replays expiram em 7d por padrão; ajuste `REPLAY_RETENTION_DAYS` se necessário
+5. Webhooks de alerta para endereços privados/loopback são bloqueados (SSRF). Se o destino é interno, defina `ALLOW_PRIVATE_WEBHOOKS=1`
+6. O webhook de deploy exige segredo por projeto — gere em _Configurações do projeto_ após atualizar
+7. Login e verificação de 2FA bloqueiam por 15 min após 10 falhas por usuário (memória do processo; no Cloudflare vale por isolate)

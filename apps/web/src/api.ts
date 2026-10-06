@@ -35,7 +35,11 @@ export async function login(username: string, password: string): Promise<void> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ username, password }),
   });
-  if (!res.ok) throw new Error("credenciais inválidas");
+  if (!res.ok) {
+    // 401 = credenciais; 429 = bloqueio temporário por tentativas (mensagem do backend)
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error ?? "credenciais inválidas");
+  }
   const data = (await res.json()) as { token: string };
   setToken(data.token);
 }

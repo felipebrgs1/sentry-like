@@ -2,6 +2,18 @@ import type { SentryEvent } from "@sentrylike/shared";
 
 const VALID_LEVELS = new Set(["fatal", "error", "warning", "info", "debug"]);
 
+/**
+ * Normaliza um id do protocolo (event_id, replay_id) para 32 hex minúsculos —
+ * aceita hex32 ou UUID com hífens, como o Relay. Qualquer outra coisa → null.
+ * Esses ids viram chave primária E segmento de caminho no BlobStore: nunca
+ * usar o valor cru do SDK (path traversal com `../`).
+ */
+export function normalizeId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const hex = value.replace(/-/g, "").toLowerCase();
+  return /^[0-9a-f]{32}$/.test(hex) ? hex : null;
+}
+
 export type ValidateResult = { ok: true; event: SentryEvent } | { ok: false; error: string };
 
 /** Validação leve de evento Sentry — rejeita lixo com mensagem descritiva. */

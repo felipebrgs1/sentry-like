@@ -1,6 +1,9 @@
 import { Elysia } from "elysia";
 import { authGuard } from "../middleware/auth";
+import { canAccess } from "../middleware/access";
 import * as replay from "../controllers/replay.controller";
+
+const replayAccess = { beforeHandle: canAccess("replay") };
 
 /**
  * Rotas de replays (Fase 9) — protegidas pelo authGuard do dashboard.
@@ -8,6 +11,8 @@ import * as replay from "../controllers/replay.controller";
  */
 export const replayRoutes = new Elysia()
   .onBeforeHandle(authGuard)
-  .get("/v1/projects/:id/replays", ({ params }) => replay.list({ params }))
-  .get("/v1/replays/:id", ({ params, set }) => replay.detail({ params, set }))
-  .delete("/v1/replays/:id", ({ params, set }) => replay.remove({ params, set }));
+  .get("/v1/projects/:id/replays", ({ params }) => replay.list({ params }), {
+    beforeHandle: canAccess("project"),
+  })
+  .get("/v1/replays/:id", ({ params, set }) => replay.detail({ params, set }), replayAccess)
+  .delete("/v1/replays/:id", ({ params, set }) => replay.remove({ params, set }), replayAccess);

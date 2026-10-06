@@ -1,6 +1,8 @@
 import type { HandlerContext } from "./types";
 import * as releaseService from "../services/release.service";
 import * as issueService from "../services/issue.service";
+import { getWebhookSecret } from "../services/project.service";
+import { verifyDeployWebhook } from "../lib/signature";
 import type { ReleaseCommit } from "@sentrylike/shared";
 
 /** GET /v1/projects/:id/releases */
@@ -78,9 +80,29 @@ export async function issueReleases({ params }: Pick<HandlerContext, "params">) 
   return releaseService.issueReleases(Number(params.id));
 }
 
-/** POST /v1/webhooks/releases — GitHub/GitLab push (público, server-to-server) */
-export async function webhook({ params, body }: Pick<HandlerContext, "params" | "body">) {
+/**
+ * POST /v1/webhooks/releases/:projectId — GitHub/GitLab push (público, server-to-server).
+ * Autenticado pelo segredo do projeto; sem segredo configurado o webhook fica desativado.
+ */
+export async function webhook({
+  params,
+  request,
+  set,
+}: Pick<HandlerContext, "params" | "request" | "set">) {
   const projectId = Number(params.projectId);
+  const secret = Number.isInteger(projectId) ? await getWebhookSecret(projectId) : null;
+  const raw = new Uint8Array(await request.arrayBuffer());
+  if (!secret || !(await verifyDeployWebhook(secret, raw, request.headers))) {
+    set.status = 401;
+    return { error: "invalid or missing webhook signature" };
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(new TextDecoder().decode(raw));
+  } catch {
+    set.status = 400;
+    return { error: "invalid JSON" };
+  }
   const name = await releaseService.handleDeployWebhook(projectId, body);
   return { ok: true, release: name };
 }

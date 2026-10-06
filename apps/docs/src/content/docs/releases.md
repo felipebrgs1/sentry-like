@@ -16,6 +16,18 @@ Releases são **auto-descobertas**: a primeira vez que um evento/transaction/ses
 - **Comparação lado a lado** entre releases: eventos, issues novas, latência, erro
 - **Webhook de deploy** — GitHub/GitLab push (refs/tags) marca deploy com commits
 
+### Webhook de deploy (assinado)
+
+`POST /v1/webhooks/releases/:projectId` é público (server-to-server), então **exige o segredo do projeto**. O owner gera/rotaciona o segredo em _Configurações do projeto → Webhook de deploy_ (projetos criados antes desta versão começam sem segredo = webhook desativado).
+
+| Origem  | Como autenticar                                                                       |
+| ------- | ------------------------------------------------------------------------------------- |
+| GitHub  | campo **Secret** do webhook (content type `application/json`) → `X-Hub-Signature-256` |
+| GitLab  | campo **Secret token** → `X-Gitlab-Token`                                             |
+| CI/curl | header `X-Sentrylike-Token: <segredo>`                                                |
+
+Sem assinatura válida → `401`.
+
 ## Web vitals por release
 
 A página de release compara web vitals entre deploys, junto com o crash-free.

@@ -1,14 +1,33 @@
 import type { HandlerContext } from "./types";
 import * as userService from "../services/user.service";
+import { currentUser } from "../middleware/auth";
 import { generateTotpSecret, provisioningUri } from "../lib/totp";
+import { totpLimiter } from "../lib/attempts";
 
-function currentUser(ctx: Pick<HandlerContext, "store">) {
-  return ctx.store.user;
+/** Aplica o limitador de falhas a uma verificação (TOTP/senha atual). */
+async function limited(
+  ctx: Pick<HandlerContext, "set">,
+  key: string,
+  check: () => Promise<boolean>,
+): Promise<"ok" | "invalid" | "blocked"> {
+  const wait = totpLimiter.retryAfter(key);
+  if (wait > 0) {
+    ctx.set.status = 429;
+    ctx.set.headers = { "retry-after": String(wait) };
+    return "blocked";
+  }
+  if (!(await check())) {
+    totpLimiter.fail(key);
+    return "invalid";
+  }
+  totpLimiter.reset(key);
+  return "ok";
 }
 
-function requireOwner(ctx: Pick<HandlerContext, "store" | "set">): boolean {
-  const user = currentUser(ctx);
-  if (!user?.isOwner) {
+const TOO_MANY = { error: "muitas tentativas — aguarde alguns minutos" };
+
+function requireOwner(ctx: Pick<HandlerContext, "request" | "set">): boolean {
+  if (!currentUser(ctx.request).isOwner) {
     ctx.set.status = 403;
     return false;
   }
@@ -16,7 +35,7 @@ function requireOwner(ctx: Pick<HandlerContext, "store" | "set">): boolean {
 }
 
 /** GET /v1/users — lista usuários (owner) */
-export async function listUsers(ctx: Pick<HandlerContext, "store" | "set">) {
+export async function listUsers(ctx: Pick<HandlerContext, "request" | "set">) {
   if (!requireOwner(ctx)) return { error: "owner only" };
   const rows = await userService.listUsers();
   return rows.map(userService.toPublicUser);
@@ -24,7 +43,7 @@ export async function listUsers(ctx: Pick<HandlerContext, "store" | "set">) {
 
 /** POST /v1/users — cria usuário (owner) */
 export async function createUser(
-  ctx: Pick<HandlerContext, "store" | "set" | "body"> & {
+  ctx: Pick<HandlerContext, "request" | "set" | "body"> & {
     body: { email: string; name: string; password: string; isOwner?: number };
   },
 ) {
@@ -45,7 +64,7 @@ export async function createUser(
 }
 
 /** DELETE /v1/users/:id — remove usuário (owner) */
-export async function deleteUser(ctx: Pick<HandlerContext, "store" | "set" | "params">) {
+export async function deleteUser(ctx: Pick<HandlerContext, "request" | "set" | "params">) {
   if (!requireOwner(ctx)) return { error: "owner only" };
   if (!(await userService.deleteUser(Number(ctx.params.id)))) {
     ctx.set.status = 400;
@@ -59,25 +78,25 @@ export async function deleteUser(ctx: Pick<HandlerContext, "store" | "set" | "pa
 // ------------------------------------------------------------------
 
 /** GET /v1/api-tokens — meus tokens */
-export async function listTokens(ctx: Pick<HandlerContext, "store">) {
-  return userService.listTokens(currentUser(ctx)!.id);
+export async function listTokens(ctx: Pick<HandlerContext, "request">) {
+  return userService.listTokens(currentUser(ctx.request).id);
 }
 
 /** POST /v1/api-tokens — cria token (retorna o token UMA vez) */
 export async function createToken(
-  ctx: Pick<HandlerContext, "store" | "set" | "body"> & { body: { name?: string } },
+  ctx: Pick<HandlerContext, "request" | "set" | "body"> & { body: { name?: string } },
 ) {
   const name = ctx.body?.name?.trim();
   if (!name) {
     ctx.set.status = 400;
     return { error: "name is required" };
   }
-  return userService.createToken(currentUser(ctx)!.id, name);
+  return userService.createToken(currentUser(ctx.request).id, name);
 }
 
 /** DELETE /v1/api-tokens/:id */
-export async function deleteToken(ctx: Pick<HandlerContext, "store" | "set" | "params">) {
-  if (!(await userService.deleteToken(Number(ctx.params.id), currentUser(ctx)!.id))) {
+export async function deleteToken(ctx: Pick<HandlerContext, "request" | "set" | "params">) {
+  if (!(await userService.deleteToken(Number(ctx.params.id), currentUser(ctx.request).id))) {
     ctx.set.status = 404;
     return { error: "not found" };
   }
@@ -89,8 +108,8 @@ export async function deleteToken(ctx: Pick<HandlerContext, "store" | "set" | "p
 // ------------------------------------------------------------------
 
 /** POST /v1/auth/2fa/enable — gera segredo e URI */
-export async function enable2fa(ctx: Pick<HandlerContext, "store">) {
-  const user = currentUser(ctx)!;
+export async function enable2fa(ctx: Pick<HandlerContext, "request">) {
+  const user = currentUser(ctx.request);
   if (user.totpEnabled) return { error: "2FA já ativado" };
   const secret = generateTotpSecret();
   await userService.enableTotp(user.id, secret);
@@ -99,10 +118,14 @@ export async function enable2fa(ctx: Pick<HandlerContext, "store">) {
 
 /** POST /v1/auth/2fa/confirm — confirma o código e ativa */
 export async function confirm2fa(
-  ctx: Pick<HandlerContext, "store" | "set" | "body"> & { body: { code?: string } },
+  ctx: Pick<HandlerContext, "request" | "set" | "body"> & { body: { code?: string } },
 ) {
-  const user = currentUser(ctx)!;
-  if (!(await userService.confirmTotp(user.id, ctx.body?.code ?? ""))) {
+  const user = currentUser(ctx.request);
+  const res = await limited(ctx, `totp:${user.id}`, () =>
+    userService.confirmTotp(user.id, ctx.body?.code ?? ""),
+  );
+  if (res === "blocked") return TOO_MANY;
+  if (res === "invalid") {
     ctx.set.status = 400;
     return { error: "código inválido" };
   }
@@ -111,10 +134,14 @@ export async function confirm2fa(
 
 /** POST /v1/auth/2fa/disable — desativa com código */
 export async function disable2fa(
-  ctx: Pick<HandlerContext, "store" | "set" | "body"> & { body: { code?: string } },
+  ctx: Pick<HandlerContext, "request" | "set" | "body"> & { body: { code?: string } },
 ) {
-  const user = currentUser(ctx)!;
-  if (!(await userService.disableTotp(user.id, ctx.body?.code ?? ""))) {
+  const user = currentUser(ctx.request);
+  const res = await limited(ctx, `totp:${user.id}`, () =>
+    userService.disableTotp(user.id, ctx.body?.code ?? ""),
+  );
+  if (res === "blocked") return TOO_MANY;
+  if (res === "invalid") {
     ctx.set.status = 400;
     return { error: "código inválido" };
   }
@@ -123,17 +150,21 @@ export async function disable2fa(
 
 /** POST /v1/auth/change-password — troca a senha do usuário logado */
 export async function changePassword(
-  ctx: Pick<HandlerContext, "store" | "set" | "body"> & {
+  ctx: Pick<HandlerContext, "request" | "set" | "body"> & {
     body: { currentPassword: string; newPassword: string };
   },
 ) {
-  const user = currentUser(ctx)!;
+  const user = currentUser(ctx.request);
   const { currentPassword, newPassword } = ctx.body ?? {};
   if (!currentPassword || !newPassword || newPassword.length < 6) {
     ctx.set.status = 400;
     return { error: "senha atual e nova (min 6) são obrigatórias" };
   }
-  if (!(await userService.changePassword(user.id, currentPassword, newPassword))) {
+  const res = await limited(ctx, `password:${user.id}`, () =>
+    userService.changePassword(user.id, currentPassword, newPassword),
+  );
+  if (res === "blocked") return TOO_MANY;
+  if (res === "invalid") {
     ctx.set.status = 400;
     return { error: "senha atual incorreta" };
   }

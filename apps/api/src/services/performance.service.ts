@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, isNotNull, like, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, like, sql } from "drizzle-orm";
 import type {
   DayStat,
   ReleasePerformance,
@@ -230,7 +230,11 @@ export async function deleteTransactionsByName(projectId: number, name: string):
 // ------------------------------------------------------------------
 
 /** Resumo global: rotas de todos os projetos (janela de 7 dias). */
-export async function globalSummaries(days = 7): Promise<TransactionSummary[]> {
+/** `projectIds` null = todos os projetos (owner). */
+export async function globalSummaries(
+  days = 7,
+  projectIds: number[] | null = null,
+): Promise<TransactionSummary[]> {
   const since = Date.now() - days * 24 * 3600_000;
   const projectRows = await db.select().from(projects).all();
   const projectNames = new Map(projectRows.map((p) => [p.id, p.name]));
@@ -243,7 +247,12 @@ export async function globalSummaries(days = 7): Promise<TransactionSummary[]> {
       status: transactions.status,
     })
     .from(transactions)
-    .where(gt(transactions.timestamp, since))
+    .where(
+      and(
+        gt(transactions.timestamp, since),
+        projectIds === null ? undefined : inArray(transactions.projectId, projectIds),
+      ),
+    )
     .all();
 
   const groups = new Map<

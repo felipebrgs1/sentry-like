@@ -1,6 +1,31 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { DATA_DIR } from "../config";
+
+/**
+ * Segmentos de caminho dos blobs. `subdir`/`eventId` vêm (indiretamente) do
+ * SDK — só aceitamos [A-Za-z0-9_-] para não haver `../` (path traversal).
+ */
+const SAFE_SEGMENT = /^[A-Za-z0-9_-]{1,128}$/;
+
+function blobKey(projectId: number, subdir: string, eventId: string, name: string): string {
+  if (!Number.isInteger(projectId) || !SAFE_SEGMENT.test(subdir) || !SAFE_SEGMENT.test(eventId)) {
+    throw new Error("invalid blob path segment");
+  }
+  const safeName = name
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/^\.+/, "_")
+    .slice(0, 200);
+  return `${projectId}/${subdir}/${eventId}/${safeName || "blob"}`;
+}
+
+/** Caminho absoluto dentro de DATA_DIR (recusa qualquer coisa que escape dele). */
+function insideDataDir(path: string): string {
+  const root = resolve(DATA_DIR);
+  const abs = resolve(root, path);
+  if (!abs.startsWith(root + sep)) throw new Error("blob path escapes DATA_DIR");
+  return abs;
+}
 
 /**
  * BlobStore: salva blobs (attachments/replays/sourcemaps).
@@ -26,18 +51,16 @@ class DiskBlobStore implements BlobStore {
     name: string,
     data: Uint8Array,
   ): Promise<string> {
-    const safeName = name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 200);
-    const dir = join(DATA_DIR, String(projectId), subdir, eventId);
-    await mkdir(dir, { recursive: true });
-    const abs = join(dir, safeName);
+    const key = blobKey(projectId, subdir, eventId, name);
+    const abs = insideDataDir(key);
+    await mkdir(join(abs, ".."), { recursive: true });
     await writeFile(abs, data);
-    return join(String(projectId), subdir, eventId, safeName);
+    return key;
   }
 
   async read(path: string): Promise<Uint8Array | null> {
     try {
-      const abs = join(DATA_DIR, path);
-      return new Uint8Array(await readFile(abs));
+      return new Uint8Array(await readFile(insideDataDir(path)));
     } catch {
       return null;
     }
@@ -45,7 +68,7 @@ class DiskBlobStore implements BlobStore {
 
   async delete(path: string): Promise<void> {
     try {
-      await rm(join(DATA_DIR, path), { force: true });
+      await rm(insideDataDir(path), { force: true });
     } catch {
       // já não existe
     }
@@ -68,8 +91,7 @@ class R2BlobStore implements BlobStore {
     name: string,
     data: Uint8Array,
   ): Promise<string> {
-    const safeName = name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 200);
-    const key = `${projectId}/${subdir}/${eventId}/${safeName}`;
+    const key = blobKey(projectId, subdir, eventId, name);
     await this.bucket.put(key, data);
     return key;
   }

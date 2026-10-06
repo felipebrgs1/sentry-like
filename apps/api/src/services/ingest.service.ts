@@ -16,6 +16,7 @@ import {
 import { computeFingerprint } from "../lib/fingerprint";
 import { computePriority } from "../lib/priority";
 import { saveBlob } from "../lib/storage";
+import { normalizeId } from "../lib/validate";
 import { fireIngestAlerts } from "./alert.service";
 import { symbolizeForGrouping } from "./sourcemap.service";
 import { MAX_ATTACHMENT_BYTES } from "../config";
@@ -64,7 +65,7 @@ export async function storeEvent(projectId: number, event: SentryEvent): Promise
   const now = Date.now();
   const title = eventTitle(event);
   const level = event.level ?? "error";
-  const id = (event.event_id ?? crypto.randomUUID()).replace(/-/g, "");
+  const id = normalizeId(event.event_id) ?? crypto.randomUUID().replace(/-/g, "");
 
   const existing = await db
     .select()
@@ -199,7 +200,7 @@ export async function storeTransaction(
   projectId: number,
   event: SentryEvent,
 ): Promise<string | null> {
-  const id = (event.event_id ?? crypto.randomUUID()).replace(/-/g, "");
+  const id = normalizeId(event.event_id) ?? crypto.randomUUID().replace(/-/g, "");
   const end = normalizeTimestamp(event.timestamp);
   const start = normalizeTimestamp(event.start_timestamp ?? event.timestamp);
   const duration = Math.max(0, Math.round(end - start));
@@ -349,12 +350,13 @@ export async function storeUserReport(projectId: number, payload: unknown): Prom
     comments?: string;
     timestamp?: number;
   };
-  if (!r.event_id) return;
+  // normaliza igual ao storeEvent (events.id: 32 hex sem hífens)
+  const eventId = normalizeId(r.event_id);
+  if (!eventId) return;
   await db
     .insert(userReports)
     .values({
-      // normaliza hífens igual ao storeEvent (events.id não tem hífens)
-      eventId: r.event_id.replace(/-/g, ""),
+      eventId,
       projectId,
       name: r.name ?? null,
       email: r.email ?? null,
@@ -381,7 +383,7 @@ export async function storeReplay(
     segment_id?: number;
     segments?: unknown;
   };
-  const id = parsed.replay_id ?? crypto.randomUUID().replace(/-/g, "");
+  const id = normalizeId(parsed.replay_id) ?? crypto.randomUUID().replace(/-/g, "");
   const ts =
     typeof parsed.timestamp === "number"
       ? parsed.timestamp < 1e12

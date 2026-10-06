@@ -3,7 +3,7 @@ import type { ApiToken, Org, User } from "@sentrylike/shared";
 import { db } from "../db";
 import { apiTokens, orgMembers, orgs, projects, sessions, users } from "../db/schema";
 
-import { hashPassword, verifyPassword } from "../lib/password";
+import { hashPassword, hashToken, isTokenHash, verifyPassword } from "../lib/password";
 import { verifyTotp } from "../lib/totp";
 
 // ------------------------------------------------------------------
@@ -43,11 +43,39 @@ export async function ensureBootstrap(): Promise<void> {
     await createOwner(process.env.ADMIN_USER.trim(), process.env.ADMIN_PASSWORD.trim());
   }
 
+  await migrateTokenHashes();
+
   // reset de senha via env (sem email) — ver applyResetPassword()
   if (await applyResetPassword()) {
     console.error(
       "[sentrylike] RESET_PASSWORD aplicada ao owner — faça login com a temporária, troque no dashboard e delete o secret.",
     );
+  }
+}
+
+/**
+ * Migração idempotente: tokens de sessão/API antigos estavam em texto puro.
+ * Substitui cada um pelo hash (os clientes continuam usando o token cru).
+ */
+async function migrateTokenHashes(): Promise<void> {
+  for (const row of await db.select({ token: sessions.token }).from(sessions).all()) {
+    if (isTokenHash(row.token)) continue;
+    await db
+      .update(sessions)
+      .set({ token: await hashToken(row.token) })
+      .where(eq(sessions.token, row.token))
+      .run();
+  }
+  for (const row of await db
+    .select({ id: apiTokens.id, token: apiTokens.token })
+    .from(apiTokens)
+    .all()) {
+    if (isTokenHash(row.token)) continue;
+    await db
+      .update(apiTokens)
+      .set({ token: await hashToken(row.token) })
+      .where(eq(apiTokens.id, row.id))
+      .run();
   }
 }
 
@@ -196,11 +224,12 @@ export async function getUserByEmail(email: string): Promise<DbUser | undefined>
 /** Resolve o usuário por sessão OU por API token (Bearer). */
 export async function authenticate(token: string | null): Promise<DbUser | null> {
   if (!token) return null;
-  const session = await db.select().from(sessions).where(eq(sessions.token, token)).get();
+  const hashed = await hashToken(token);
+  const session = await db.select().from(sessions).where(eq(sessions.token, hashed)).get();
   if (session && session.expiresAt > Date.now() && session.userId) {
     return (await getUserById(session.userId)) ?? null;
   }
-  const apiToken = await db.select().from(apiTokens).where(eq(apiTokens.token, token)).get();
+  const apiToken = await db.select().from(apiTokens).where(eq(apiTokens.token, hashed)).get();
   if (apiToken) {
     await db
       .update(apiTokens)
@@ -303,8 +332,15 @@ export async function hasOrgAccess(user: User, projectOrgId: number | null): Pro
 // ------------------------------------------------------------------
 
 export async function listTokens(userId: number): Promise<ApiToken[]> {
+  // nunca devolve a coluna `token` (hash) — o token cru só aparece na criação
   return db
-    .select()
+    .select({
+      id: apiTokens.id,
+      userId: apiTokens.userId,
+      name: apiTokens.name,
+      lastUsedAt: apiTokens.lastUsedAt,
+      createdAt: apiTokens.createdAt,
+    })
     .from(apiTokens)
     .where(eq(apiTokens.userId, userId))
     .orderBy(apiTokens.createdAt)
@@ -318,7 +354,12 @@ export async function createToken(
   const token = `sentrylike_${crypto.randomUUID().replace(/-/g, "")}${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
   const row = await db
     .insert(apiTokens)
-    .values({ userId, name: name.trim().slice(0, 80), token, createdAt: Date.now() })
+    .values({
+      userId,
+      name: name.trim().slice(0, 80),
+      token: await hashToken(token),
+      createdAt: Date.now(),
+    })
     .returning({ id: apiTokens.id })
     .get();
   return { id: row.id, name: name.trim().slice(0, 80), token };

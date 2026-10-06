@@ -1,11 +1,11 @@
-import { and, gt, isNotNull, sql } from "drizzle-orm";
+import { and, gt, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import type { OverviewStats, TopRoute } from "@sentrylike/shared";
 import { db } from "../db";
 import { events, issues, transactions } from "../db/schema";
 import { fillDays } from "../lib/timeseries";
 import { listProjects, projectEventsCountSince, projectOpenIssueCount } from "./project.service";
 
-async function countEvents(cond: any) {
+async function countEvents(cond: SQL | undefined) {
   return (
     (
       await db
@@ -18,13 +18,13 @@ async function countEvents(cond: any) {
 }
 
 /** Usuários ativos (presença aproximada: user.id distinto em transações recentes). */
-async function countActiveUsers(since: number): Promise<number> {
+async function countActiveUsers(since: number, txScope: SQL | undefined): Promise<number> {
   return (
     (
       await db
         .select({ c: sql<number>`count(distinct ${transactions.userId})` })
         .from(transactions)
-        .where(and(gt(transactions.timestamp, since), isNotNull(transactions.userId)))
+        .where(and(gt(transactions.timestamp, since), isNotNull(transactions.userId), txScope))
         .get()
     )?.c ?? 0
   );
@@ -36,8 +36,13 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, idx)];
 }
 
-export async function overview(): Promise<OverviewStats> {
+/** `projectIds` null = todos os projetos (owner); senão, só os visíveis ao usuário. */
+export async function overview(projectIds: number[] | null = null): Promise<OverviewStats> {
   const now = Date.now();
+  const scoped = projectIds !== null;
+  const issueScope = scoped ? inArray(issues.projectId, projectIds) : undefined;
+  const eventScope = scoped ? inArray(events.projectId, projectIds) : undefined;
+  const txScope = scoped ? inArray(transactions.projectId, projectIds) : undefined;
   const d24 = now - 24 * 3600 * 1000;
   const d7 = now - 7 * 24 * 3600 * 1000;
   const d14 = now - 14 * 24 * 3600 * 1000;
@@ -48,7 +53,10 @@ export async function overview(): Promise<OverviewStats> {
         .select({ c: sql<number>`count(*)` })
         .from(issues)
         .where(
-          sql`(status = 'unresolved' OR (status = 'ignored' AND ignored_until IS NOT NULL AND ignored_until < ${now})) AND merged_into IS NULL`,
+          and(
+            sql`(status = 'unresolved' OR (status = 'ignored' AND ignored_until IS NOT NULL AND ignored_until < ${now})) AND merged_into IS NULL`,
+            issueScope,
+          ),
         )
         .get()
     )?.c ?? 0;
@@ -59,13 +67,13 @@ export async function overview(): Promise<OverviewStats> {
       count: sql<number>`count(*)`,
     })
     .from(events)
-    .where(gt(events.timestamp, d14))
+    .where(and(gt(events.timestamp, d14), eventScope))
     .groupBy(sql`date(timestamp / 1000, 'unixepoch')`)
     .all();
 
   const eventsPerDay = fillDays(perDay, now, 14);
 
-  const projects = await listProjects();
+  const projects = (await listProjects()).filter((p) => !scoped || projectIds.includes(p.id));
   const projectStats = [];
   for (const p of projects) {
     projectStats.push({
@@ -86,7 +94,7 @@ export async function overview(): Promise<OverviewStats> {
       status: transactions.status,
     })
     .from(transactions)
-    .where(gt(transactions.timestamp, d24))
+    .where(and(gt(transactions.timestamp, d24), txScope))
     .all();
 
   const txDurations = txRows.map((r) => r.duration).toSorted((a, b) => a - b);
@@ -128,8 +136,8 @@ export async function overview(): Promise<OverviewStats> {
 
   return {
     openIssues,
-    events24h: await countEvents(gt(events.timestamp, d24)),
-    events7d: await countEvents(gt(events.timestamp, d7)),
+    events24h: await countEvents(and(gt(events.timestamp, d24), eventScope)),
+    events7d: await countEvents(and(gt(events.timestamp, d7), eventScope)),
     eventsPerDay,
     projects: projectStats,
     transactions24h: txRows.length,
@@ -140,9 +148,9 @@ export async function overview(): Promise<OverviewStats> {
     txErrorRate24h: txDurations.length ? txErrors / txDurations.length : 0,
     topRoutes,
     activeUsers: {
-      m15: await countActiveUsers(now - 15 * 60_000),
-      m60: await countActiveUsers(now - 60 * 60_000),
-      h24: await countActiveUsers(d24),
+      m15: await countActiveUsers(now - 15 * 60_000, txScope),
+      m60: await countActiveUsers(now - 60 * 60_000, txScope),
+      h24: await countActiveUsers(d24, txScope),
     },
   };
 }

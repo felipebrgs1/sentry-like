@@ -6,6 +6,7 @@ export const projects = sqliteTable("projects", {
   publicKey: text("public_key").notNull().unique(),
   allowedDomains: text("allowed_domains"), // JSON array de domínios permitidos (CORS)
   orgId: integer("org_id"), // Fase 7: organização dona do projeto
+  webhookSecret: text("webhook_secret"), // segredo do webhook de deploy (HMAC GitHub / token GitLab)
   createdAt: integer("created_at").notNull(),
 });
 

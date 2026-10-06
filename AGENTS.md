@@ -68,7 +68,8 @@ routes/  →  controllers/  →  services/  →  db (Drizzle)
 ```
 
 - **routes**: NUNCA têm lógica. Só `.get("/x", ({params}) => ctrl.fn({params}), { schema })`. Handlers NÃO são passados direto como referência — use arrow que desestrutura o contexto: `({ params }) => ctrl.fn({ params })` (robusto com inferência degradada do editor).
-- **controllers**: recebem `Pick<HandlerContext, "params" | "query" | "body" | "request" | "set">` (tipo em `controllers/types.ts`). Tipam `body`/`params` manualmente. `set.status = 404` + retorna `{ error }`. Sem SQL.
+- **controllers**: recebem `Pick<HandlerContext, "params" | "query" | "body" | "request" | "set">` (tipo em `controllers/types.ts`). Usuário logado: `currentUser(request)` (`middleware/auth.ts`) — **NUNCA** `ctx.store` (é global da app; ver §8).
+- **autorização**: toda rota `/v1` que recebe id de recurso declara `beforeHandle: canAccess("project" | "issue" | "event" | ...)` (`middleware/access.ts`, 404 se inacessível); mutações owner-only usam `ownerOnly`. Listagens/agregados entre projetos filtram com `accessibleProjectIds(user)`. Tipam `body`/`params` manualmente. `set.status = 404` + retorna `{ error }`. Sem SQL.
 - **services**: funções puras de acesso a dados e regras. Nunca tocam em `set`/`request`.
 - **lib/**: helpers sem dependência de HTTP.
 - **middleware/auth.ts**: `authGuard` é **função** registrada com `.onBeforeHandle(authGuard)` em cada módulo de rotas protegido. **NÃO** criar como plugin Elysia singleton — o `.use()` do Elysia MUTA a instância do plugin, e compartilhar entre módulos é não-determinístico (bug já encontrado). O guard usa `{ as: "scoped" }` quando for plugin; na prática usamos `.onBeforeHandle` direto (canônico).
@@ -125,6 +126,8 @@ Regras:
 6. **Drizzle bun-sqlite**: `.run()` retorna `void` nos tipos — use `.returning({id}).get()` para pegar o id.
 7. **Seed do projeto demo** só roda quando o DB está vazio — a key antiga continua valendo após rebuild (pegar do `/v1/projects`, não dos logs).
 8. Colunas novas em tabelas existentes: **sempre** adicionar o `ALTER TABLE ... ADD COLUMN` idempotente em `db/index.ts` (try/catch), senão DBs antigos quebram.
+9. **Elysia `store` é GLOBAL**: `ctx.store.user = ...` num guard vaza entre requests concorrentes (member lia o owner). Estado por request → `WeakMap<Request, ...>` (`currentUser`).
+10. **Ids do SDK viram caminho em disco**: `event_id`/`replay_id` passam por `normalizeId()` antes de qualquer `saveBlob` (path traversal).
 
 ## 9. Testes (automáticos)
 
@@ -157,8 +160,8 @@ Envelope mínimo (formato EXATO — 1 linha de header por item, `length` em byte
 
 ## 10. Roadmap (resumo para decisões)
 
-- Fase 1 (ingestão completa) ✅ — envelope multi-item, tunnel, gzip/deflate, rate limit por categoria, origin check, validação, client reports, sentry-trace.
-- **Fase 2 🔜** — issues & grouping: fingerprint custom do SDK, ignorar com janela, regressão, merge, ações em lote, prioridade.
-- Fase 3 — releases & environments. Fase 4 — performance (transactions). Fase 5 — alertas. Fase 6 — sessões/crash-free. Fase 7 — multi-usuário. Fase 8 — sourcemaps. Fase 9 — replays. Fase 10 — UI.
+- Fases 1–10 ✅ (ingestão, issues, releases, performance, alertas, sessões, multi-usuário, sourcemaps, replays, UI) — histórico em `git show fa2e8f7^:roadmap.md`.
+- **Conformidade (auditoria 2026-10-05)**: **F11 segurança ✅** → **F12 bugs de ingestão com SDKs reais 🔜** → **F13 integridade de dados 🔜** → F14 grouping → F15 cobertura do protocolo → F16 sourcemaps/sentry-cli reais → F17 fundação de UI (estado na URL, page filters) → F18 issues stream/detalhe → F19 workflow de issues → F20 API `/api/0` → F21 alertas → F22 health/perf/replays/stats → F23 org/acesso/PII.
+- ⚠️ Algumas regras da §5/§8 (header `60000:`, "deflate é raw") estão **erradas** e são itens da F12 — não as replique em código novo.
 
 Detalhes e não-objetivos em `roadmap.md`. Ao adicionar feature: verifique se já está no roadmap e marque quando concluir.

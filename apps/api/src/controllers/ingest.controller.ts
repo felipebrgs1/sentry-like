@@ -2,7 +2,8 @@ import type { HandlerContext } from "./types";
 import { MAX_ENVELOPE_BYTES } from "../config";
 import { parseEnvelope } from "../lib/envelope";
 import { isRateLimited, rateLimitHeaders, type RateCategory } from "../lib/ratelimit";
-import { parseDsn, validateEvent } from "../lib/validate";
+import { normalizeId, parseDsn, validateEvent } from "../lib/validate";
+import { decompressCapped, PayloadTooLargeError, readBodyCapped } from "../lib/body";
 import { getAllowedDomains, getProject, getProjectByKey } from "../services/project.service";
 import * as ingestService from "../services/ingest.service";
 import type { Project, SentryEvent } from "@sentrylike/shared";
@@ -21,30 +22,21 @@ function extractSentryKey(request: Request): string | null {
 }
 
 /**
- * Decompression portável (Web Streams) — funciona em Bun e Cloudflare Workers.
- * `deflate` do Sentry é RAW (RFC 1951), então usamos "deflate-raw".
- * Fallback para Bun.gunzipSync/inflateSync caso o stream não suporte.
+ * Corpo cru + descompressão, ambos com teto (MAX_ENVELOPE_BYTES) — nada de
+ * bufferizar um decompression bomb. Erro → preenche set.status e devolve null.
  */
-async function maybeDecompress(buf: Uint8Array, encoding: string | null): Promise<Uint8Array> {
-  if (!encoding) return buf;
+async function readPayload(ctx: HandlerContext): Promise<Uint8Array | null> {
   try {
-    const format = encoding === "gzip" ? "gzip" : "deflate-raw";
-    const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream(format));
-    return new Uint8Array(await new Response(stream).arrayBuffer());
-  } catch {
-    // VPS/Bun fallback (typeof guard para não quebrar no Worker)
-    if (typeof Bun !== "undefined") {
-      if (encoding === "gzip") return Bun.gunzipSync(buf as Uint8Array<ArrayBuffer>);
-      return Bun.inflateSync(buf as Uint8Array<ArrayBuffer>);
-    }
-    throw new Error("unsupported content-encoding: " + encoding);
+    const raw = await readBodyCapped(ctx.request, ctx.body, MAX_ENVELOPE_BYTES);
+    return await decompressCapped(
+      raw,
+      ctx.request.headers.get("content-encoding"),
+      MAX_ENVELOPE_BYTES,
+    );
+  } catch (e) {
+    ctx.set.status = e instanceof PayloadTooLargeError ? 413 : 400;
+    return null;
   }
-}
-
-async function readRawBody(request: Request, parsed: unknown): Promise<Uint8Array> {
-  if (parsed instanceof Uint8Array) return parsed;
-  if (typeof parsed === "string") return new TextEncoder().encode(parsed);
-  return new Uint8Array(await request.arrayBuffer());
 }
 
 /** CORS por projeto: sem Origin (server-to-server) ou domínios vazios = liberado. */
@@ -121,7 +113,7 @@ async function processEnvelope(
   traceHeader: string | null,
 ): Promise<ProcessResult> {
   const { header, items } = parseEnvelope(raw);
-  const envelopeEventId = typeof header.event_id === "string" ? header.event_id : null;
+  const envelopeEventId = normalizeId(header.event_id);
   let lastEventId: string | null = null;
   const limitedCategories: RateCategory[] = [];
 
@@ -199,14 +191,8 @@ export async function envelope(ctx: HandlerContext) {
   const project = await guardProject(ctx);
   if (!project) return {};
 
-  const raw = await maybeDecompress(
-    await readRawBody(ctx.request, ctx.body),
-    ctx.request.headers.get("content-encoding"),
-  );
-  if (raw.byteLength > MAX_ENVELOPE_BYTES) {
-    ctx.set.status = 413;
-    return { detail: "envelope too large" };
-  }
+  const raw = await readPayload(ctx);
+  if (!raw) return { detail: "invalid or too large envelope" };
 
   try {
     const { id, limitedCategories } = await processEnvelope(
@@ -231,11 +217,9 @@ export async function userFeedback(ctx: HandlerContext) {
     return rateLimitResponse(ctx, project.id, ["user_report"]);
   }
 
+  const raw = await readPayload(ctx);
+  if (!raw) return { detail: "invalid or too large payload" };
   try {
-    const raw = await maybeDecompress(
-      await readRawBody(ctx.request, ctx.body),
-      ctx.request.headers.get("content-encoding"),
-    );
     ingestService.storeUserReport(project.id, JSON.parse(new TextDecoder().decode(raw)));
     return { ok: true };
   } catch {
@@ -253,11 +237,9 @@ export async function store(ctx: HandlerContext) {
     return rateLimitResponse(ctx, project.id, ["error"]);
   }
 
+  const raw = await readPayload(ctx);
+  if (!raw) return { detail: "invalid or too large event" };
   try {
-    const raw = await maybeDecompress(
-      await readRawBody(ctx.request, ctx.body),
-      ctx.request.headers.get("content-encoding"),
-    );
     const res = validateEvent(JSON.parse(new TextDecoder().decode(raw)));
     if (!res.ok) {
       ctx.set.status = 400;
@@ -276,14 +258,8 @@ export async function store(ctx: HandlerContext) {
 
 /** POST /api/tunnel — SDKs de browser via proxy (anti ad-blocker). DSN vem no header do envelope. */
 export async function tunnel(ctx: HandlerContext) {
-  const raw = await maybeDecompress(
-    await readRawBody(ctx.request, ctx.body),
-    ctx.request.headers.get("content-encoding"),
-  );
-  if (raw.byteLength > MAX_ENVELOPE_BYTES) {
-    ctx.set.status = 413;
-    return { detail: "envelope too large" };
-  }
+  const raw = await readPayload(ctx);
+  if (!raw) return { detail: "invalid or too large envelope" };
 
   try {
     const { header } = parseEnvelope(raw);

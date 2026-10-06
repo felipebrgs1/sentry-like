@@ -274,6 +274,7 @@ const ALTER_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS transactions_user_ts ON transactions(user_id, timestamp)`,
   `ALTER TABLE projects ADD COLUMN org_id INTEGER`,
   `ALTER TABLE sessions ADD COLUMN user_id INTEGER`,
+  `ALTER TABLE projects ADD COLUMN webhook_secret TEXT`,
 ];
 
 /** Cria o banco (bun:sqlite, VPS) e roda o bootstrap síncrono. */

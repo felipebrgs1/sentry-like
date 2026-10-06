@@ -195,10 +195,11 @@ export async function removeRelease({
 /** GET /api/0/organizations/:org/releases/:version/files/ — dedup do sentry-cli */
 export async function sentryFilesList(ctx: HandlerContext) {
   const origin = new URL(ctx.request.url).origin;
-  const org = await orgBySlug(ctx, ctx.params.org);
-  if (!org) return { files: [] };
+  // auth ANTES do lookup da org (não revela quais slugs existem)
   const user = await sentryAuth(ctx);
   if (!user) return { files: [] };
+  const org = await orgBySlug(ctx, ctx.params.org);
+  if (!org) return { files: [] };
 
   let projectIds: number[];
   let projectName = "";

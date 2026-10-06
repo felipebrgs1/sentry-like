@@ -139,6 +139,20 @@ function esc(s: string): string {
     .replaceAll('"', "&quot;");
 }
 
+/**
+ * Nome de atributo seguro: só caracteres de nome XML/HTML. O nome é escrito
+ * cru no HTML — sem essa checagem, uma chave como `x onerror=alert(1) y`
+ * injetava um handler (XSS armazenado com a key pública do DSN).
+ */
+const SAFE_ATTR_NAME = /^[a-zA-Z_:][-a-zA-Z0-9_:.]*$/;
+
+/** Documento completo do player (vai no `srcDoc` de um iframe `sandbox=""`). */
+export function replaySrcDoc(bodyHtml: string): string {
+  const csp =
+    "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'";
+  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${csp}"><style>html,body{margin:0}</style>${bodyHtml}`;
+}
+
 /** Serializa a árvore de nós em HTML seguro. */
 export function renderNodeHtml(node: RrwebNode | null | undefined): string {
   if (!node) return "";
@@ -156,6 +170,7 @@ export function renderNodeHtml(node: RrwebNode | null | undefined): string {
   const attrs = node.attributes ?? {};
   let html = `<${tag}`;
   for (const [k, raw] of Object.entries(attrs)) {
+    if (!SAFE_ATTR_NAME.test(k)) continue;
     const lk = k.toLowerCase();
     if (lk.startsWith("on")) continue; // handlers de evento — nunca
     const v = String(raw);

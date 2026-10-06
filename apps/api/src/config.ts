@@ -18,3 +18,10 @@ export const SESSION_TTL_MS = 7 * 24 * 3600 * 1000; // 7 dias
 
 // URL pública do dashboard — usada nos links dos alertas (VPS: env; CF: [vars])
 export const APP_URL = (process.env.APP_URL ?? "http://localhost:3001").replace(/\/$/, "");
+
+// Webhooks de alerta para IPs privados/loopback (SSRF) são bloqueados por padrão.
+// Self-host que alerta para um serviço interno (n8n, Mattermost na LAN) liga com
+// ALLOW_PRIVATE_WEBHOOKS=1. Lido a cada envio (não no import) para valer em runtime.
+export function allowPrivateWebhooks(): boolean {
+  return process.env.ALLOW_PRIVATE_WEBHOOKS === "1";
+}

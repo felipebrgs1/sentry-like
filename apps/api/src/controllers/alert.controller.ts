@@ -1,6 +1,8 @@
 import type { HandlerContext } from "./types";
 import * as alertService from "../services/alert.service";
 import * as projectService from "../services/project.service";
+import { allowPrivateWebhooks } from "../config";
+import { webhookUrlError } from "../lib/netguard";
 import type { AlertRuleType, WebhookType } from "@sentrylike/shared";
 
 const RULE_TYPES: AlertRuleType[] = [
@@ -39,6 +41,11 @@ export async function create({
     set.status = 400;
     return { error: "webhookType and webhookUrl are required" };
   }
+  const urlError = webhookUrlError(b.webhookUrl, allowPrivateWebhooks());
+  if (urlError) {
+    set.status = 400;
+    return { error: `webhookUrl: ${urlError}` };
+  }
   return alertService.createAlertRule({
     projectId: Number(params.id),
     name: b.name,
@@ -65,6 +72,13 @@ export async function update({
   if (b.enabled !== undefined && ![0, 1].includes(b.enabled)) {
     set.status = 400;
     return { error: "enabled must be 0 or 1" };
+  }
+  const urlError = b.webhookUrl?.trim()
+    ? webhookUrlError(b.webhookUrl, allowPrivateWebhooks())
+    : null;
+  if (urlError) {
+    set.status = 400;
+    return { error: `webhookUrl: ${urlError}` };
   }
   if (
     !(await alertService.updateAlertRule(Number(params.id), {

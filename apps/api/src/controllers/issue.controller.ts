@@ -2,12 +2,18 @@ import type { HandlerContext } from "./types";
 import type { IssueStatus, SentryEvent } from "@sentrylike/shared";
 import * as issueService from "../services/issue.service";
 import { symbolizeEvent } from "../services/sourcemap.service";
+import { accessibleIssueIds, accessibleProjectIds } from "../services/access.service";
+import { currentUser } from "../middleware/auth";
 
 const VALID_STATUSES: IssueStatus[] = ["unresolved", "resolved", "ignored"];
 
-/** GET /v1/issues — recentes (todos os projetos) */
-export async function recent({ query }: Pick<HandlerContext, "query">) {
-  return issueService.recentIssues(query?.status, Math.min(Number(query?.limit ?? 10), 50));
+/** GET /v1/issues — recentes (todos os projetos visíveis ao usuário) */
+export async function recent({ query, request }: Pick<HandlerContext, "query" | "request">) {
+  return issueService.recentIssues(
+    query?.status,
+    Math.min(Number(query?.limit ?? 10), 50),
+    await accessibleProjectIds(currentUser(request)),
+  );
 }
 
 /** GET /v1/issues/:id */
@@ -88,13 +94,15 @@ export async function merge({
   params,
   body,
   set,
-}: Pick<HandlerContext, "params" | "body" | "set">) {
+  request,
+}: Pick<HandlerContext, "params" | "body" | "set" | "request">) {
   const ids = ((body as { ids?: unknown } | undefined)?.ids ?? []) as unknown[];
   if (!ids.every((i) => Number.isInteger(i))) {
     set.status = 400;
     return { error: "ids must be an array of integers" };
   }
-  if (!(await issueService.mergeIssues(Number(params.id), ids.map(Number)))) {
+  const allowed = await accessibleIssueIds(currentUser(request), ids.map(Number));
+  if (!(await issueService.mergeIssues(Number(params.id), allowed))) {
     set.status = 404;
     return { error: "nothing to merge" };
   }
@@ -111,7 +119,11 @@ export async function unmerge({ params, set }: Pick<HandlerContext, "params" | "
 }
 
 /** POST /v1/issues/batch — ações em lote */
-export async function batch({ body, set }: Pick<HandlerContext, "body" | "set">) {
+export async function batch({
+  body,
+  set,
+  request,
+}: Pick<HandlerContext, "body" | "set" | "request">) {
   const b = (body ?? {}) as {
     ids?: unknown;
     action?: string;
@@ -131,7 +143,7 @@ export async function batch({ body, set }: Pick<HandlerContext, "body" | "set">)
       ? b.ignoreUntil
       : null;
   return issueService.batchUpdate(
-    b.ids.map(Number),
+    await accessibleIssueIds(currentUser(request), b.ids.map(Number)),
     b.action as issueService.BatchAction,
     ignoreUntil,
   );

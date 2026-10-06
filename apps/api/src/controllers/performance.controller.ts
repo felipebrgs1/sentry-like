@@ -1,5 +1,7 @@
 import type { HandlerContext } from "./types";
 import * as perfService from "../services/performance.service";
+import { accessibleProjectIds } from "../services/access.service";
+import { currentUser } from "../middleware/auth";
 
 function filters(query?: Record<string, string | undefined>) {
   return {
@@ -9,10 +11,10 @@ function filters(query?: Record<string, string | undefined>) {
   };
 }
 
-/** GET /v1/performance/summaries — rotas de todos os projetos */
-export async function global({ query }: Pick<HandlerContext, "query">) {
+/** GET /v1/performance/summaries — rotas de todos os projetos visíveis ao usuário */
+export async function global({ query, request }: Pick<HandlerContext, "query" | "request">) {
   const days = Math.min(Math.max(Number(query?.days ?? 7), 1), 90);
-  return perfService.globalSummaries(days);
+  return perfService.globalSummaries(days, await accessibleProjectIds(currentUser(request)));
 }
 
 /** GET /v1/projects/:id/transaction-summaries */

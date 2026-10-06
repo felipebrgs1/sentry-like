@@ -5,6 +5,8 @@ import {
   createSession,
   destroySession,
 } from "../services/auth.service";
+import { currentUser } from "../middleware/auth";
+import { loginLimiter } from "../lib/attempts";
 import { ensureBootstrap, needsSetup, setupOwner, toPublicUser } from "../services/user.service";
 
 export async function login({
@@ -14,11 +16,20 @@ export async function login({
   body: { username: string; password: string; totpCode?: string };
 }) {
   await ensureBootstrap();
+  const key = body.username.trim().toLowerCase();
+  const wait = loginLimiter.retryAfter(key);
+  if (wait > 0) {
+    set.status = 429;
+    set.headers = { "retry-after": String(wait) };
+    return { error: `muitas tentativas — tente de novo em ${Math.ceil(wait / 60)} min` };
+  }
   const user = await checkCredentials(body.username, body.password, body.totpCode);
   if (!user) {
+    loginLimiter.fail(key);
     set.status = 401;
     return { error: "credenciais inválidas" };
   }
+  loginLimiter.reset(key);
   return { token: await createSession(user.id), user: toPublicUser(user) };
 }
 
@@ -27,8 +38,8 @@ export async function logout({ request }: Pick<HandlerContext, "request">) {
   return { ok: true };
 }
 
-export async function me({ store }: Pick<HandlerContext, "store">) {
-  return { user: store.user ? toPublicUser(store.user) : null };
+export async function me({ request }: Pick<HandlerContext, "request">) {
+  return { user: toPublicUser(currentUser(request)) };
 }
 
 /** GET /v1/auth/setup-status — público: true se ainda não existe usuário */

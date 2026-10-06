@@ -24,16 +24,47 @@ export function buildDsn(origin: string, publicKey: string, projectId: number): 
   return `${origin.replace("://", `://${publicKey}@`)}/${projectId}`;
 }
 
+/** Colunas públicas do projeto — o segredo do webhook nunca sai em listagens. */
+const projectColumns = {
+  id: projects.id,
+  name: projects.name,
+  publicKey: projects.publicKey,
+  allowedDomains: projects.allowedDomains,
+  orgId: projects.orgId,
+  createdAt: projects.createdAt,
+};
+
 export async function listProjects(): Promise<Project[]> {
-  return db.select().from(projects).all();
+  return db.select(projectColumns).from(projects).all();
 }
 
 export async function getProject(id: number): Promise<Project | undefined> {
-  return db.select().from(projects).where(eq(projects.id, id)).get();
+  return db.select(projectColumns).from(projects).where(eq(projects.id, id)).get();
 }
 
 export async function getProjectByKey(publicKey: string): Promise<Project | undefined> {
-  return db.select().from(projects).where(eq(projects.publicKey, publicKey)).get();
+  return db.select(projectColumns).from(projects).where(eq(projects.publicKey, publicKey)).get();
+}
+
+/** Segredo do webhook de deploy (null = webhook desativado até o owner gerar um). */
+export async function getWebhookSecret(id: number): Promise<string | null> {
+  const row = await db
+    .select({ secret: projects.webhookSecret })
+    .from(projects)
+    .where(eq(projects.id, id))
+    .get();
+  return row?.secret ?? null;
+}
+
+/** Gera (ou rotaciona) o segredo do webhook de deploy. */
+export async function rotateWebhookSecret(id: number): Promise<string> {
+  const secret = newWebhookSecret();
+  await db.update(projects).set({ webhookSecret: secret }).where(eq(projects.id, id)).run();
+  return secret;
+}
+
+function newWebhookSecret(): string {
+  return crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 }
 
 /** Domínios permitidos para CORS (JSON array armazenado) — null/vazio = todos. */
@@ -55,7 +86,7 @@ export async function createProject(name: string): Promise<{
   const publicKey = crypto.randomUUID().replace(/-/g, "");
   const row = await db
     .insert(projects)
-    .values({ name, publicKey, createdAt: Date.now() })
+    .values({ name, publicKey, webhookSecret: newWebhookSecret(), createdAt: Date.now() })
     .returning({ id: projects.id })
     .get();
   return { id: row.id, name, publicKey };

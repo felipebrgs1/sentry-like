@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { authGuard } from "../middleware/auth";
+import { canAccess } from "../middleware/access";
 import * as sourcemap from "../controllers/sourcemap.controller";
 
 /**
@@ -11,14 +12,25 @@ import * as sourcemap from "../controllers/sourcemap.controller";
  */
 
 // dashboard (protegido pelo authGuard do dashboard)
+const projectAccess = { beforeHandle: canAccess("project") };
+
 const dashboardRoutes = new Elysia()
   .onBeforeHandle(authGuard)
-  .get("/v1/projects/:id/sourcemaps", ({ params, query }) => sourcemap.filesList({ params, query }))
-  .get("/v1/projects/:id/sourcemap-releases", ({ params }) => sourcemap.releasesList({ params }))
+  .get(
+    "/v1/projects/:id/sourcemaps",
+    ({ params, query }) => sourcemap.filesList({ params, query }),
+    projectAccess,
+  )
+  .get(
+    "/v1/projects/:id/sourcemap-releases",
+    ({ params }) => sourcemap.releasesList({ params }),
+    projectAccess,
+  )
   .post(
     "/v1/projects/:id/sourcemaps",
     ({ params, body, set }) => sourcemap.upload({ params, body, set }),
     {
+      ...projectAccess,
       body: t.Object({
         name: t.String({ minLength: 1 }),
         release: t.String({ minLength: 1 }),
@@ -27,9 +39,13 @@ const dashboardRoutes = new Elysia()
       }),
     },
   )
-  .delete("/v1/sourcemaps/:id", ({ params, set }) => sourcemap.remove({ params, set }))
-  .delete("/v1/projects/:id/sourcemaps", ({ params, query, set }) =>
-    sourcemap.removeRelease({ params, query, set }),
+  .delete("/v1/sourcemaps/:id", ({ params, set }) => sourcemap.remove({ params, set }), {
+    beforeHandle: canAccess("sourcemap"),
+  })
+  .delete(
+    "/v1/projects/:id/sourcemaps",
+    ({ params, query, set }) => sourcemap.removeRelease({ params, query, set }),
+    projectAccess,
   );
 
 // protocolo do sentry-cli (autentica por API token — Bearer ou X-Auth-Token)
